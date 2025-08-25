@@ -646,5 +646,8 @@ st.download_button(
     mime="image/png",
 )
 
+# ============================== Meta ==============================
+st.caption("Auteur : Ibrahim Bitar — Version V1.0 — Déployé le 24/08/2025")
+
 # ============================== Help / Schemas ==============================
 
