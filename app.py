@@ -286,6 +286,7 @@ ms_date_pos = (
     if show_ms_dates
     else None
 )
+
 ms_date_offset = (
     st.sidebar.slider(
         "Offset vertical date jalon (axes fraction)",
@@ -617,6 +618,7 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
         else:
             y_txt = y_af - gap
             va = "top"
+
         ax.text(
             x_ms,
             y_txt,
@@ -629,6 +631,7 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
             zorder=7,
             clip_on=False,
         )
+
     legend_handles.append(Line2D([0],[0], marker="v", linestyle="None",
                                  markersize=ms_markersize,
                                  markerfacecolor=color, markeredgecolor=color,
