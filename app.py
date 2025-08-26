@@ -287,6 +287,23 @@ ms_date_pos = (
     else None
 )
 
+ms_date_offset = (
+    st.sidebar.slider(
+        "Offset vertical date jalon (axes fraction)",
+        0.0,
+        0.1,
+        0.02,
+        step=0.005,
+    )
+    if show_ms_dates
+    else 0.02
+)
+ms_date_fmt = (
+    st.sidebar.text_input("Format date jalon", "%d/%m")
+    if show_ms_dates
+    else "%d/%m"
+)
+
 st.sidebar.subheader("Inputs (flèches descendantes)")
 show_inputs = st.sidebar.checkbox("Afficher inputs", value=True)
 inputs_alt_extra = st.sidebar.slider("Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05)
@@ -593,16 +610,28 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
             markerfacecolor=color, markeredgecolor=color,
             transform=blended, zorder=7)
     if show_ms_dates:
-        txt = mdates.num2date(x_ms).strftime("%d/%m")
-        gap = 0.02
+        txt = mdates.num2date(x_ms).strftime(ms_date_fmt)
+        gap = ms_date_offset
         if ms_date_pos == "Opposé à la flèche":
             y_txt = y_af + gap
             va = "bottom"
         else:
             y_txt = y_af - gap
             va = "top"
-        ax.text(x_ms, y_txt, txt, rotation=90, va=va, ha="center",
-                fontsize=9, transform=blended, zorder=7, clip_on=False)
+
+        ax.text(
+            x_ms,
+            y_txt,
+            txt,
+            rotation=90,
+            va=va,
+            ha="center",
+            fontsize=9,
+            transform=blended,
+            zorder=7,
+            clip_on=False,
+        )
+
     legend_handles.append(Line2D([0],[0], marker="v", linestyle="None",
                                  markersize=ms_markersize,
                                  markerfacecolor=color, markeredgecolor=color,
