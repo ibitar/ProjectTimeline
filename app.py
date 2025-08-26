@@ -277,6 +277,15 @@ ms_markersize = st.sidebar.slider("Taille triangles jalons", 8, 36, 16, step=1)
 ms_offset = st.sidebar.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
 anti_overlap = st.sidebar.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=True)
 ms_alt_extra = st.sidebar.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
+show_ms_dates = st.sidebar.checkbox("Afficher date jalon", value=False)
+ms_date_pos = (
+    st.sidebar.selectbox(
+        "Position date jalon",
+        ["Opposé à la flèche", "Près de la pointe"],
+    )
+    if show_ms_dates
+    else None
+)
 
 st.sidebar.subheader("Inputs (flèches descendantes)")
 show_inputs = st.sidebar.checkbox("Afficher inputs", value=True)
@@ -583,6 +592,17 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
     ax.plot([x_ms], [y_af], marker="v", markersize=ms_markersize,
             markerfacecolor=color, markeredgecolor=color,
             transform=blended, zorder=7)
+    if show_ms_dates:
+        txt = mdates.num2date(x_ms).strftime("%d/%m")
+        gap = 0.02
+        if ms_date_pos == "Opposé à la flèche":
+            y_txt = y_af + gap
+            va = "bottom"
+        else:
+            y_txt = y_af - gap
+            va = "top"
+        ax.text(x_ms, y_txt, txt, rotation=90, va=va, ha="center",
+                fontsize=9, transform=blended, zorder=7, clip_on=False)
     legend_handles.append(Line2D([0],[0], marker="v", linestyle="None",
                                  markersize=ms_markersize,
                                  markerfacecolor=color, markeredgecolor=color,
