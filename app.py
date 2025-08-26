@@ -342,6 +342,14 @@ input_date_rot = (
     else 90
 )
 
+input_titles_in_legend = st.sidebar.checkbox("Titres inputs en légende", value=False)
+input_title_date_split = st.sidebar.checkbox("Date & titre de part et d'autre", value=False)
+input_lr_offset = (
+    st.sidebar.slider("Décalage horizontal date/titre (jours)", 0.0, 5.0, 0.5, step=0.1)
+    if input_title_date_split
+    else 0.5
+)
+
 st.sidebar.subheader("Axe X (flèche)")
 ax_arrow_lw = st.sidebar.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5)
 ax_arrow_scale = st.sidebar.slider("Taille pointe flèche", 10, 60, 30, step=2)
@@ -669,9 +677,6 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
                                  markerfacecolor=color, markeredgecolor=color,
                                  label=row.title))
 
-if legend_handles:
-    ax.legend(handles=legend_handles, loc="upper left", frameon=False)
-
 # Inputs (arrows for inputs)
 if show_inputs and not df_inputs.empty:
     for k, row in enumerate(df_inputs.itertuples(index=False)):
@@ -699,23 +704,32 @@ if show_inputs and not df_inputs.empty:
             arrowprops=dict(arrowstyle='-|>', lw=1.5),
             zorder=6,
         )
+        x_label = x_d - (input_lr_offset if (input_title_date_split and not input_titles_in_legend) else 0.0)
+        x_date = x_d + (input_lr_offset if input_title_date_split else 0.0)
 
-        ax.text(
-            x_d,
-            y1 + date_sign * 0.05,
-            row.label,
-            rotation=90,
-            va=va_lab,
-            ha="center",
-            fontsize=9,
-            zorder=6,
-            clip_on=False,
-        )
+        if input_titles_in_legend:
+            marker = "v" if inputs_position == "Haut (flèches descendantes)" else "^"
+            legend_handles.append(Line2D([0],[0], marker=marker, linestyle="None",
+                                         markersize=ms_markersize,
+                                         markerfacecolor="black", markeredgecolor="black",
+                                         label=row.label))
+        else:
+            ax.text(
+                x_label,
+                y1 + date_sign * 0.05,
+                row.label,
+                rotation=90,
+                va=va_lab,
+                ha="center",
+                fontsize=9,
+                zorder=6,
+                clip_on=False,
+            )
 
         if show_input_dates:
             txt = mdates.num2date(x_d).strftime(input_date_fmt)
             ax.text(
-                x_d,
+                x_date,
                 y1 + date_sign * input_date_offset,
                 txt,
                 rotation=input_date_rot,
@@ -725,6 +739,9 @@ if show_inputs and not df_inputs.empty:
                 zorder=6,
                 clip_on=False,
             )
+
+if legend_handles:
+    ax.legend(handles=legend_handles, loc="upper left", frameon=False)
 
 # X axis limits and ticks
 ax.set_xlim(x_min_num, x_max_num)
