@@ -304,11 +304,43 @@ ms_date_fmt = (
     else "%d/%m"
 )
 
-st.sidebar.subheader("Inputs (flèches descendantes)")
+st.sidebar.subheader("Inputs")
 show_inputs = st.sidebar.checkbox("Afficher inputs", value=True)
-inputs_alt_extra = st.sidebar.slider("Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05)
-inputs_top_margin = st.sidebar.slider("Marge verticale haut (Y)", 0.0, 2.0, 1.0, step=0.1)
+inputs_position = st.sidebar.selectbox(
+    "Position des inputs",
+    ["Haut (flèches descendantes)", "Bas (flèches montantes)"],
+    index=0,
+)
+inputs_alt_extra = st.sidebar.slider(
+    "Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05
+)
+inputs_top_margin = (
+    st.sidebar.slider("Marge verticale haut (Y)", 0.0, 2.0, 1.0, step=0.1)
+    if inputs_position == "Haut (flèches descendantes)"
+    else 1.0
+)
+inputs_bottom_margin = (
+    st.sidebar.slider("Marge verticale bas (Y)", 0.0, 2.0, 1.0, step=0.1)
+    if inputs_position == "Bas (flèches montantes)"
+    else 1.0
+)
 input_arrow_len = st.sidebar.slider("Longueur flèche input (Y)", 0.2, 2.0, 0.8, step=0.1)
+show_input_dates = st.sidebar.checkbox("Afficher date input", value=False)
+input_date_fmt = (
+    st.sidebar.text_input("Format date input", "%d/%m")
+    if show_input_dates
+    else "%d/%m"
+)
+input_date_offset = (
+    st.sidebar.slider("Décalage vertical date input (Y)", 0.0, 1.0, 0.15, step=0.05)
+    if show_input_dates
+    else 0.15
+)
+input_date_rot = (
+    st.sidebar.slider("Rotation date input", 0, 90, 90, step=5)
+    if show_input_dates
+    else 90
+)
 
 st.sidebar.subheader("Axe X (flèche)")
 ax_arrow_lw = st.sidebar.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5)
@@ -640,23 +672,75 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
 if legend_handles:
     ax.legend(handles=legend_handles, loc="upper left", frameon=False)
 
-# Inputs (down arrows at top)
+# Inputs (arrows for inputs)
 if show_inputs and not df_inputs.empty:
-    y_top = len(df_tasks) + inputs_top_margin
     for k, row in enumerate(df_inputs.itertuples(index=False)):
         x_d = mdates.date2num(row.date)
-        extra = (inputs_alt_extra if (anti_overlap and k % 2 == 1) else 0.0)
-        y0 = y_top + extra
-        y1 = y0 - input_arrow_len
-        # arrow
-        ax.annotate("", xy=(x_d, y1), xytext=(x_d, y0), xycoords="data", textcoords="data",
-                    arrowprops=dict(arrowstyle='-|>', lw=1.5), zorder=6)
-        # vertical label near arrow head, rotated
-        ax.text(x_d, y1 - 0.05, row.label, rotation=90, va="top", ha="center", fontsize=9, zorder=6, clip_on=False)
+        extra = inputs_alt_extra if (anti_overlap and k % 2 == 1) else 0.0
+        if inputs_position == "Haut (flèches descendantes)":
+            y_base = len(df_tasks) + inputs_top_margin
+            y0 = y_base + extra
+            y1 = y0 - input_arrow_len
+            va_lab = "top"
+            date_sign = -1.0
+        else:
+            y_base = -inputs_bottom_margin
+            y0 = y_base - extra
+            y1 = y0 + input_arrow_len
+            va_lab = "bottom"
+            date_sign = 1.0
+
+        ax.annotate(
+            "",
+            xy=(x_d, y1),
+            xytext=(x_d, y0),
+            xycoords="data",
+            textcoords="data",
+            arrowprops=dict(arrowstyle='-|>', lw=1.5),
+            zorder=6,
+        )
+
+        ax.text(
+            x_d,
+            y1 + date_sign * 0.05,
+            row.label,
+            rotation=90,
+            va=va_lab,
+            ha="center",
+            fontsize=9,
+            zorder=6,
+            clip_on=False,
+        )
+
+        if show_input_dates:
+            txt = mdates.num2date(x_d).strftime(input_date_fmt)
+            ax.text(
+                x_d,
+                y1 + date_sign * input_date_offset,
+                txt,
+                rotation=input_date_rot,
+                va=va_lab,
+                ha="center",
+                fontsize=9,
+                zorder=6,
+                clip_on=False,
+            )
 
 # X axis limits and ticks
 ax.set_xlim(x_min_num, x_max_num)
-ax.set_ylim(-0.5, max(2.0, len(df_tasks) + inputs_top_margin + 0.8))
+y_min, y_max = -0.5, max(2.0, len(df_tasks) + inputs_top_margin + 0.8)
+if show_inputs and not df_inputs.empty:
+    if inputs_position == "Haut (flèches descendantes)":
+        y_needed = len(df_tasks) + inputs_top_margin + input_arrow_len + inputs_alt_extra
+        if show_input_dates:
+            y_needed += input_date_offset
+        y_max = max(y_max, y_needed + 0.5)
+    else:
+        y_needed = -inputs_bottom_margin - input_arrow_len - inputs_alt_extra
+        if show_input_dates:
+            y_needed -= input_date_offset
+        y_min = min(y_min, y_needed - 0.5)
+ax.set_ylim(y_min, y_max)
 ax.xaxis_date()
 if unit == "Jours":
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=int(x_tick_step)))
