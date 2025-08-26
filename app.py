@@ -293,6 +293,12 @@ fig_w = st.sidebar.slider("Largeur figure", 6, 20, 12)
 fig_h = st.sidebar.slider("Hauteur figure", 4, 12, 6)
 st.sidebar.caption("💡 Télécharge le PNG en bas de page.")
 
+# ============================== Meta Infos ==============================
+st.sidebar.divider()
+st.sidebar.caption("👤 Auteur : Ibrahim Bitar")
+st.sidebar.caption("🏷️ Version : v1.0.0")
+st.sidebar.caption("📅 Release : 24/08/2025")
+
 # ============================== Data loading ==============================
 
 try:
@@ -646,8 +652,6 @@ st.download_button(
     mime="image/png",
 )
 
-# ============================== Meta ==============================
-st.caption("Auteur : Ibrahim Bitar — Version V1.0 — Déployé le 24/08/2025")
 
 # ============================== Help / Schemas ==============================
 
