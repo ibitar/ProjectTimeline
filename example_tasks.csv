@@ -1,9 +1,9 @@
-id,title,start,end,group,milestone,depends_on
-T1,Cadrage du projet,2025-09-01,2025-09-05,Pilotage,0,
-T2,Spécifications fonctionnelles,2025-09-08,2025-09-19,Conception,0,T1
-T3,Architecture technique,2025-09-15,2025-09-26,Conception,0,T1
-M1,Milestone: Spécifications validées,2025-09-22,2025-09-22,Jalons,1,"T2,T3"
-T4,Développement sprint 1,2025-09-23,2025-10-10,Dév,0,M1
-T5,Développement sprint 2,2025-10-13,2025-10-31,Dév,0,T4
-T6,Tests & Recette,2025-11-03,2025-11-14,Qualité,0,T5
-M2,Milestone: Go/No-Go,2025-11-17,2025-11-17,Jalons,1,T6
+id,title,start,end,group,milestone,depends_on,marker
+T1,Cadrage du projet,2025-09-01,2025-09-05,Pilotage,0,,
+T2,Spécifications fonctionnelles,2025-09-08,2025-09-19,Conception,0,T1,
+T3,Architecture technique,2025-09-15,2025-09-26,Conception,0,T1,
+M1,Milestone: Spécifications validées,2025-09-22,2025-09-22,Jalons,1,"T2,T3",v
+T4,Développement sprint 1,2025-09-23,2025-10-10,Dév,0,M1,
+T5,Développement sprint 2,2025-10-13,2025-10-31,Dév,0,T4,
+T6,Tests & Recette,2025-11-03,2025-11-14,Qualité,0,T5,
+M2,Milestone: Go/No-Go,2025-11-17,2025-11-17,Jalons,1,T6,o

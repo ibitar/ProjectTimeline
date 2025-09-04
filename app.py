@@ -119,15 +119,19 @@ def parse_activities_csv(file) -> pd.DataFrame:
 
 def parse_milestones_csv(file) -> pd.DataFrame:
     df = pd.read_csv(file)
+    df = df.rename(columns={c: c.lower() for c in df.columns})
     # accept either (id,title,date) or (id,title,start,end with same day)
-    if {"id","title","date"}.issubset({c.lower() for c in df.columns}):
-        df = df.rename(columns={c: c.lower() for c in df.columns})
+    if {"id", "title", "date"}.issubset(df.columns):
         df["start"] = df["date"]
         df["end"] = df["date"]
-    elif {"id","title","start","end"}.issubset({c.lower() for c in df.columns}):
+    elif {"id", "title", "start", "end"}.issubset(df.columns):
         pass
     else:
-        raise ValueError("milestones.csv doit contenir: id,title,date OR id,title,start,end (start=end).")
+        raise ValueError(
+            "milestones.csv doit contenir: id,title,date OR id,title,start,end (start=end)."
+        )
+    if "marker" not in df:
+        df["marker"] = "v"
     df["milestone"] = 1
     return df
 
@@ -156,9 +160,13 @@ def _init_editor_state():
 
     if "editor_ms" not in st.session_state:
         st.session_state.editor_ms = pd.DataFrame([
-            {"id": "M1", "title": "Specs validées",
-             "date": datetime.date(2025, 9, 22)},
-        ], columns=["id", "title", "date"])
+            {
+                "id": "M1",
+                "title": "Specs validées",
+                "date": datetime.date(2025, 9, 22),
+                "marker": "v",
+            },
+        ], columns=["id", "title", "date", "marker"])
 
     if "editor_inputs" not in st.session_state:
         st.session_state.editor_inputs = pd.DataFrame([
@@ -178,10 +186,14 @@ def _init_editor_state_from_df(df_all: pd.DataFrame, df_inputs: pd.DataFrame, fi
     tasks["end"] = pd.to_datetime(tasks["end"]).dt.date
 
     ms = df_all[df_all.get("milestone", 0).astype(int) == 1].copy()
-    ms = ms.rename(columns={"start": "date"})[["id", "title", "date"]]
+    ms = ms.rename(columns={"start": "date"})
+    if "marker" not in ms:
+        ms["marker"] = "v"
+    ms = ms[["id", "title", "date", "marker"]]
 
     ms["id"] = ms["id"].astype(str)
     ms["title"] = ms["title"].astype(str)
+    ms["marker"] = ms["marker"].fillna("v").astype(str)
 
     ms["date"] = pd.to_datetime(ms["date"]).dt.date
 
@@ -237,13 +249,15 @@ def _build_df_all_from_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame) -> p
     df_tasks["milestone"] = 0
     df_tasks["group"] = df_tasks.get("group","").fillna("")
     df_tasks["depends_on"] = df_tasks.get("depends_on","").fillna("")
-    df_ms = df_ms.rename(columns={"date":"start"})
+    df_tasks["marker"] = df_tasks.get("marker", "").fillna("")
+    df_ms = df_ms.rename(columns={"date": "start"})
     df_ms["end"] = df_ms["start"]
     df_ms["group"] = ""
     df_ms["depends_on"] = ""
     df_ms["milestone"] = 1
-    df_ms = df_ms[["id","title","start","end","group","milestone","depends_on"]]
-    df_tasks = df_tasks[["id","title","start","end","group","milestone","depends_on"]]
+    df_ms["marker"] = df_ms.get("marker", "v").fillna("v")
+    df_ms = df_ms[["id", "title", "start", "end", "group", "milestone", "depends_on", "marker"]]
+    df_tasks = df_tasks[["id", "title", "start", "end", "group", "milestone", "depends_on", "marker"]]
     df_all = pd.concat([df_tasks, df_ms], ignore_index=True)
     return df_all
 
@@ -335,7 +349,7 @@ with tabs[4]:
 with tabs[5]:
     st.subheader("Jalons")
     milestones_vlines = st.checkbox("Lignes verticales jalons", value=True)
-    ms_markersize = st.slider("Taille triangles jalons", 8, 36, 16, step=1)
+    ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1)
     ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
     anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=True)
     ms_alt_extra = st.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
@@ -449,7 +463,7 @@ try:
                 key="editor_tasks_uploaded",
             )
 
-            st.markdown("**Jalons** (id, title, date)")
+            st.markdown("**Jalons** (id, title, date, marker)")
             editor_ms = st.data_editor(
                 st.session_state.editor_ms,
                 num_rows="dynamic",
@@ -458,6 +472,9 @@ try:
                     "id": st.column_config.TextColumn("id"),
                     "title": st.column_config.TextColumn("title", width="medium"),
                     "date": st.column_config.DateColumn("date"),
+                    "marker": st.column_config.TextColumn(
+                        "marker", help="Symbole Matplotlib (v, o, s, ^, ...)", width="small"
+                    ),
                 },
                 key="editor_ms_uploaded",
             )
@@ -524,7 +541,7 @@ try:
             key="editor_tasks_widget"
         )
 
-        st.markdown("**Jalons** (id, title, date)")
+        st.markdown("**Jalons** (id, title, date, marker)")
         editor_ms = st.data_editor(
             st.session_state.editor_ms,
             num_rows="dynamic",
@@ -533,8 +550,9 @@ try:
                 "id": st.column_config.TextColumn("id"),
                 "title": st.column_config.TextColumn("title", width="medium"),
                 "date": st.column_config.DateColumn("date"),
+                "marker": st.column_config.TextColumn("marker", help="Symbole Matplotlib (v, o, s, ^, ...)", width="small"),
             },
-            key="editor_ms_widget"
+            key="editor_ms_widget",
         )
 
         with st.expander("Inputs (optionnel) — date, label", expanded=False):
@@ -593,9 +611,16 @@ try:
         if "group" not in df_act: df_act["group"] = ""
         if "depends_on" not in df_act: df_act["depends_on"] = ""
         df_act["milestone"] = 0
-        df_all = pd.concat([df_act[["id","title","start","end","group","milestone","depends_on"]],
-                            df_ms[["id","title","start","end","milestone"]].assign(group="", depends_on="")],
-                           ignore_index=True)
+        df_act["marker"] = df_act.get("marker", "").fillna("")
+        if "marker" not in df_ms:
+            df_ms["marker"] = "v"
+        df_all = pd.concat([
+            df_act[["id","title","start","end","group","milestone","depends_on","marker"]],
+            df_ms[["id","title","start","end","marker","milestone"]]
+                .assign(group="", depends_on="")[
+                    ["id","title","start","end","group","milestone","depends_on","marker"]
+                ],
+        ], ignore_index=True)
         df_inputs = parse_inputs_csv(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
 except Exception as e:
     st.error(f"Erreur lors du chargement des données : {e}")
@@ -772,9 +797,17 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
     extra = (ms_alt_extra if (anti_overlap and k % 2 == 1) else 0.0)
     y_af = ms_offset + extra
     color = palette[k % len(palette)]
-    ax.plot([x_ms], [y_af], marker="v", markersize=ms_markersize,
-            markerfacecolor=color, markeredgecolor=color,
-            transform=blended, zorder=7)
+    marker = getattr(row, "marker", "v")
+    ax.plot(
+        [x_ms],
+        [y_af],
+        marker=marker,
+        markersize=ms_markersize,
+        markerfacecolor=color,
+        markeredgecolor=color,
+        transform=blended,
+        zorder=7,
+    )
     if show_ms_dates:
         txt = mdates.num2date(x_ms).strftime(ms_date_fmt)
         gap = ms_date_offset
@@ -798,10 +831,18 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
             clip_on=False,
         )
 
-    legend_handles.append(Line2D([0],[0], marker="v", linestyle="None",
-                                 markersize=ms_markersize,
-                                 markerfacecolor=color, markeredgecolor=color,
-                                 label=row.title))
+    legend_handles.append(
+        Line2D(
+            [0],
+            [0],
+            marker=marker,
+            linestyle="None",
+            markersize=ms_markersize,
+            markerfacecolor=color,
+            markeredgecolor=color,
+            label=row.title,
+        )
+    )
 
 # Inputs (arrows for inputs)
 if show_inputs and not df_inputs.empty:
