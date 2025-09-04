@@ -274,125 +274,132 @@ elif mode_data == "CSV séparés":
 st.sidebar.markdown("---")
 unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"])
 inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
+tabs = st.sidebar.tabs([
+    "Axes & Grille",
+    "Plage X",
+    "Visuel",
+    "Titres/Durées",
+    "Dates & End-caps",
+    "Jalons",
+    "Inputs",
+    "Axe X",
+])
 
-st.sidebar.subheader("Axes & Grille")
-rot = st.sidebar.slider("Rotation des dates (X)", 0, 90, 30, step=5)
-show_grid = st.sidebar.checkbox("Quadrillage pointillé", value=True)
-grid_axis = st.sidebar.selectbox("Grille sur", ["x", "both"], index=0)
-x_tick_step = st.sidebar.number_input("Pas des graduations majeures (jours/semaines)", min_value=1, max_value=30, value=1, step=1)
-date_fmt = st.sidebar.text_input("Format des dates (strftime)", "%d %b %Y")
-
-st.sidebar.subheader("Plage X")
-x_min_str = st.sidebar.text_input("X min (AAAA-MM-JJ) — optionnel", "")
-x_max_str = st.sidebar.text_input("X max (AAAA-MM-JJ) — optionnel", "")
-x_margin_ratio = st.sidebar.slider("Marge aux extrémités (%)", 0, 20, 5, step=1) / 100.0
-
-st.sidebar.subheader("Visuel")
-row_bg = st.sidebar.checkbox("Bandes horizontales de fond", value=True)
-row_bg_alpha = st.sidebar.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01)
-row_bg_height = st.sidebar.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05)
-bar_height = st.sidebar.slider("Hauteur des barres", 0.1, 1.0, 0.4, step=0.05)
-
-st.sidebar.subheader("Titres / Durées")
-titles_above = st.sidebar.checkbox("Titres au-dessus des barres", value=True)
-title_max_fs = st.sidebar.slider("Taille max titres", 6, 18, 10)
-title_min_fs = st.sidebar.slider("Taille min titres", 4, 12, 6)
-title_gap_px = st.sidebar.slider("Décalage vertical titres (px)", 0, 20, 6)
-title_padding_px = st.sidebar.slider("Marge interne titres (px)", 0, 20, 6)
-
-dur_in_bar = st.sidebar.checkbox("Afficher la durée dans la barre", value=True)
-dur_font = st.sidebar.slider("Taille police durée", 6, 14, 8)
-dur_fmt_days = st.sidebar.text_input("Format durée (jours)", "{d} j")
-dur_fmt_weeks = st.sidebar.text_input("Format durée (semaines)", "{w:.1f} sem")
-
-st.sidebar.subheader("Dates & End-caps")
-show_start_end = st.sidebar.checkbox("Étiquettes date début/fin", value=True)
-date_label_offset = st.sidebar.number_input("Décalage étiquettes (jours)", value=0.2, step=0.1, format="%.1f")
-draw_endcaps = st.sidebar.checkbox("Traits verticaux aux extrémités", value=True)
-endcap_len = st.sidebar.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05)
-
-st.sidebar.subheader("Jalons")
-milestones_vlines = st.sidebar.checkbox("Lignes verticales jalons", value=True)
-ms_markersize = st.sidebar.slider("Taille triangles jalons", 8, 36, 16, step=1)
-ms_offset = st.sidebar.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
-anti_overlap = st.sidebar.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=True)
-ms_alt_extra = st.sidebar.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
-show_ms_dates = st.sidebar.checkbox("Afficher date jalon", value=False)
-ms_date_pos = (
-    st.sidebar.selectbox(
-        "Position date jalon",
-        ["Opposé à la flèche", "Près de la pointe"],
+with tabs[0]:
+    st.subheader("Axes & Grille")
+    rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5)
+    show_grid = st.checkbox("Quadrillage pointillé", value=True)
+    grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0)
+    x_tick_step = st.number_input(
+        "Pas des graduations majeures (jours/semaines)",
+        min_value=1,
+        max_value=30,
+        value=1,
+        step=1,
     )
-    if show_ms_dates
-    else None
-)
+    date_fmt = st.text_input("Format des dates (strftime)", "%d %b %Y")
 
-ms_date_offset = (
-    st.sidebar.slider(
-        "Offset vertical date jalon (axes fraction)",
-        0.0,
-        0.1,
-        0.02,
-        step=0.005,
+with tabs[1]:
+    st.subheader("Plage X")
+    x_min_str = st.text_input("X min (AAAA-MM-JJ) — optionnel", "")
+    x_max_str = st.text_input("X max (AAAA-MM-JJ) — optionnel", "")
+    x_margin_ratio = st.slider("Marge aux extrémités (%)", 0, 20, 5, step=1) / 100.0
+
+with tabs[2]:
+    st.subheader("Visuel")
+    row_bg = st.checkbox("Bandes horizontales de fond", value=True)
+    row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01)
+    row_bg_height = st.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05)
+    bar_height = st.slider("Hauteur des barres", 0.1, 1.0, 0.4, step=0.05)
+
+with tabs[3]:
+    st.subheader("Titres / Durées")
+    titles_above = st.checkbox("Titres au-dessus des barres", value=True)
+    title_max_fs = st.slider("Taille max titres", 6, 18, 10)
+    title_min_fs = st.slider("Taille min titres", 4, 12, 6)
+    title_gap_px = st.slider("Décalage vertical titres (px)", 0, 20, 6)
+    title_padding_px = st.slider("Marge interne titres (px)", 0, 20, 6)
+
+    dur_in_bar = st.checkbox("Afficher la durée dans la barre", value=True)
+    dur_font = st.slider("Taille police durée", 6, 14, 8)
+    dur_fmt_days = st.text_input("Format durée (jours)", "{d} j")
+    dur_fmt_weeks = st.text_input("Format durée (semaines)", "{w:.1f} sem")
+
+with tabs[4]:
+    st.subheader("Dates & End-caps")
+    show_start_end = st.checkbox("Étiquettes date début/fin", value=True)
+    date_label_offset = st.number_input("Décalage étiquettes (jours)", value=0.2, step=0.1, format="%.1f")
+    draw_endcaps = st.checkbox("Traits verticaux aux extrémités", value=True)
+    endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05)
+
+with tabs[5]:
+    st.subheader("Jalons")
+    milestones_vlines = st.checkbox("Lignes verticales jalons", value=True)
+    ms_markersize = st.slider("Taille triangles jalons", 8, 36, 16, step=1)
+    ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
+    anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=True)
+    ms_alt_extra = st.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
+    show_ms_dates = st.checkbox("Afficher date jalon", value=False)
+    ms_date_pos = (
+        st.selectbox("Position date jalon", ["Opposé à la flèche", "Près de la pointe"])
+        if show_ms_dates
+        else None
     )
-    if show_ms_dates
-    else 0.02
-)
-ms_date_fmt = (
-    st.sidebar.text_input("Format date jalon", "%d/%m")
-    if show_ms_dates
-    else "%d/%m"
-)
+    ms_date_offset = (
+        st.slider("Offset vertical date jalon (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
+        if show_ms_dates
+        else 0.02
+    )
+    ms_date_fmt = (
+        st.text_input("Format date jalon", "%d/%m") if show_ms_dates else "%d/%m"
+    )
 
-st.sidebar.subheader("Inputs")
-show_inputs = st.sidebar.checkbox("Afficher inputs", value=True)
-inputs_position = st.sidebar.selectbox(
-    "Position des inputs",
-    ["Haut (flèches descendantes)", "Bas (flèches montantes)"],
-    index=0,
-)
-inputs_alt_extra = st.sidebar.slider(
-    "Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05
-)
-inputs_top_margin = (
-    st.sidebar.slider("Marge verticale haut (Y)", 0.0, 2.0, 1.0, step=0.1)
-    if inputs_position == "Haut (flèches descendantes)"
-    else 1.0
-)
-inputs_bottom_margin = (
-    st.sidebar.slider("Marge verticale bas (Y)", 0.0, 2.0, 1.0, step=0.1)
-    if inputs_position == "Bas (flèches montantes)"
-    else 1.0
-)
-input_arrow_len = st.sidebar.slider("Longueur flèche input (Y)", 0.2, 2.0, 0.8, step=0.1)
-show_input_dates = st.sidebar.checkbox("Afficher date input", value=False)
-input_date_fmt = (
-    st.sidebar.text_input("Format date input", "%d/%m")
-    if show_input_dates
-    else "%d/%m"
-)
-input_date_offset = (
-    st.sidebar.slider("Décalage vertical date input (Y)", 0.0, 1.0, 0.15, step=0.05)
-    if show_input_dates
-    else 0.15
-)
-input_date_rot = (
-    st.sidebar.slider("Rotation date input", 0, 90, 90, step=5)
-    if show_input_dates
-    else 90
-)
+with tabs[6]:
+    st.subheader("Inputs")
+    show_inputs = st.checkbox("Afficher inputs", value=True)
+    inputs_position = st.selectbox(
+        "Position des inputs",
+        ["Haut (flèches descendantes)", "Bas (flèches montantes)"],
+        index=0,
+    )
+    inputs_alt_extra = st.slider(
+        "Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05
+    )
+    inputs_top_margin = (
+        st.slider("Marge verticale haut (Y)", 0.0, 2.0, 1.0, step=0.1)
+        if inputs_position == "Haut (flèches descendantes)"
+        else 1.0
+    )
+    inputs_bottom_margin = (
+        st.slider("Marge verticale bas (Y)", 0.0, 2.0, 1.0, step=0.1)
+        if inputs_position == "Bas (flèches montantes)"
+        else 1.0
+    )
+    input_arrow_len = st.slider("Longueur flèche input (Y)", 0.2, 2.0, 0.8, step=0.1)
+    show_input_dates = st.checkbox("Afficher date input", value=False)
+    input_date_fmt = (
+        st.text_input("Format date input", "%d/%m") if show_input_dates else "%d/%m"
+    )
+    input_date_offset = (
+        st.slider("Décalage vertical date input (Y)", 0.0, 1.0, 0.15, step=0.05)
+        if show_input_dates
+        else 0.15
+    )
+    input_date_rot = (
+        st.slider("Rotation date input", 0, 90, 90, step=5) if show_input_dates else 90
+    )
+    input_titles_in_legend = st.checkbox("Titres inputs en légende", value=False)
+    input_title_date_split = st.checkbox("Date & titre de part et d'autre", value=False)
+    input_lr_offset = (
+        st.slider("Décalage horizontal date/titre (jours)", 0.0, 5.0, 0.5, step=0.1)
+        if input_title_date_split
+        else 0.5
+    )
 
-input_titles_in_legend = st.sidebar.checkbox("Titres inputs en légende", value=False)
-input_title_date_split = st.sidebar.checkbox("Date & titre de part et d'autre", value=False)
-input_lr_offset = (
-    st.sidebar.slider("Décalage horizontal date/titre (jours)", 0.0, 5.0, 0.5, step=0.1)
-    if input_title_date_split
-    else 0.5
-)
-
-st.sidebar.subheader("Axe X (flèche)")
-ax_arrow_lw = st.sidebar.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5)
-ax_arrow_scale = st.sidebar.slider("Taille pointe flèche", 10, 60, 30, step=2)
+with tabs[7]:
+    st.subheader("Axe X (flèche)")
+    ax_arrow_lw = st.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5)
+    ax_arrow_scale = st.slider("Taille pointe flèche", 10, 60, 30, step=2)
 
 st.sidebar.markdown("---")
 fig_w = st.sidebar.slider("Largeur figure", 6, 20, 12)
