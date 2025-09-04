@@ -752,6 +752,13 @@ if row_bg:
         y1 = i + row_bg_height / 2.0
         ax.axhspan(y0, y1, xmin=0.0, xmax=1.0, alpha=row_bg_alpha, zorder=1)
 
+# Palette et couleurs de groupes
+group_palette = plt.get_cmap("tab20").colors
+unique_groups = df_tasks["group"].dropna().unique()
+group_colors = {g: group_palette[i % len(group_palette)] for i, g in enumerate(unique_groups)}
+default_color = "gray"
+legend_handles = []
+
 # Bars + labels
 for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
     start_num = mdates.date2num(row.start)
@@ -761,7 +768,15 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
     duration_weeks = duration_days / 7.0
 
     # bar
-    ax.barh(i, duration_num, left=start_num, height=bar_height, align='center', zorder=2)
+    ax.barh(
+        i,
+        duration_num,
+        left=start_num,
+        height=bar_height,
+        align='center',
+        color=group_colors.get(row.group, default_color),
+        zorder=2,
+    )
 
     # title above (with anti-overlap by alternating height)
     if titles_above:
@@ -792,10 +807,13 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
     if draw_endcaps:
         ax.vlines([start_num, end_num], ymin=i - endcap_len, ymax=i + endcap_len, zorder=5)
 
+# Légende des groupes
+for g, c in group_colors.items():
+    legend_handles.append(Line2D([0], [0], color=c, linewidth=6, label=g))
+
 # Milestones at y=0
 palette = plt.get_cmap("tab10").colors
 blended = transforms.blended_transform_factory(ax.transData, ax.transAxes)
-legend_handles = []
 
 for k, row in enumerate(df_ms.itertuples(index=False)):
     x_ms = mdates.date2num(row.start)
