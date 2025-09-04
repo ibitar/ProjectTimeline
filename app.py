@@ -155,6 +155,27 @@ def _init_editor_state():
             {"date": datetime.date(2025, 9, 10), "label": "Input A"},
         ], columns=["date", "label"])
 
+def _init_editor_state_from_df(df_all: pd.DataFrame, df_inputs: pd.DataFrame, file_id: str = ""):
+    """Initialise the editor session_state from an uploaded CSV."""
+    tasks = df_all[df_all.get("milestone", 0).astype(int) != 1].copy()
+    tasks = tasks[["id", "title", "start", "end", "group", "depends_on"]]
+    tasks["start"] = pd.to_datetime(tasks["start"]).dt.date
+    tasks["end"] = pd.to_datetime(tasks["end"]).dt.date
+
+    ms = df_all[df_all.get("milestone", 0).astype(int) == 1].copy()
+    ms = ms.rename(columns={"start": "date"})[["id", "title", "date"]]
+    ms["date"] = pd.to_datetime(ms["date"]).dt.date
+
+    st.session_state.editor_tasks = tasks
+    st.session_state.editor_ms = ms
+    st.session_state.editor_inputs = df_inputs.copy()
+    if "date" in st.session_state.editor_inputs:
+        st.session_state.editor_inputs["date"] = pd.to_datetime(
+            st.session_state.editor_inputs["date"]
+        ).dt.date
+    st.session_state.editor_source = "uploaded"
+    st.session_state.editor_file = file_id
+
 def _validate_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame):
     errors = []
     # Tâches : colonnes requises
@@ -377,6 +398,85 @@ try:
             st.stop()
         df_all = parse_combined_csv(uploaded_combined)
         df_inputs = parse_inputs_csv(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
+
+        edit_csv = st.sidebar.checkbox("Éditer les données importées", value=False)
+        if edit_csv:
+            file_id = getattr(uploaded_combined, "name", "")
+            if (st.session_state.get("editor_source") != "uploaded" or
+                    st.session_state.get("editor_file") != file_id):
+                _init_editor_state_from_df(df_all, df_inputs, file_id)
+
+            st.subheader("✍️ Édition des données importées")
+            st.markdown("**Activités** (id, title, start, end, group, depends_on)")
+            editor_tasks = st.data_editor(
+                st.session_state.editor_tasks,
+                num_rows="dynamic",
+                use_container_width=True,
+                column_config={
+                    "id": st.column_config.TextColumn("id"),
+                    "title": st.column_config.TextColumn("title", width="medium"),
+                    "start": st.column_config.DateColumn("start"),
+                    "end": st.column_config.DateColumn("end"),
+                    "group": st.column_config.TextColumn("group", width="small"),
+                    "depends_on": st.column_config.TextColumn("depends_on", help="IDs séparés par des virgules"),
+                },
+                key="editor_tasks_uploaded",
+            )
+
+            st.markdown("**Jalons** (id, title, date)")
+            editor_ms = st.data_editor(
+                st.session_state.editor_ms,
+                num_rows="dynamic",
+                use_container_width=True,
+                column_config={
+                    "id": st.column_config.TextColumn("id"),
+                    "title": st.column_config.TextColumn("title", width="medium"),
+                    "date": st.column_config.DateColumn("date"),
+                },
+                key="editor_ms_uploaded",
+            )
+
+            with st.expander("Inputs (optionnel) — date, label", expanded=False):
+                editor_inputs = st.data_editor(
+                    st.session_state.editor_inputs,
+                    num_rows="dynamic",
+                    use_container_width=True,
+                    column_config={
+                        "date": st.column_config.DateColumn("date"),
+                        "label": st.column_config.TextColumn("label", width="medium"),
+                    },
+                    key="editor_inputs_uploaded",
+                )
+
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                apply_btn = st.button("✅ Appliquer", type="primary", key="apply_upload_edit")
+            with c2:
+                export_btn = st.button("⬇️ Exporter CSV", key="export_upload_edit")
+
+            if apply_btn:
+                errs = _validate_editors(editor_tasks.copy(), editor_ms.copy())
+                if errs:
+                    for e in errs:
+                        st.error(e)
+                    st.stop()
+                st.session_state.editor_tasks = editor_tasks
+                st.session_state.editor_ms = editor_ms
+                st.session_state.editor_inputs = editor_inputs
+                st.success("Modifications appliquées.")
+
+            if export_btn:
+                combined_csv = _build_df_all_from_editors(editor_tasks, editor_ms).to_csv(index=False).encode("utf-8")
+                st.download_button("⬇️ Télécharger combined.csv", combined_csv, "combined.csv", "text/csv")
+                inputs_csv = editor_inputs.to_csv(index=False).encode("utf-8")
+                st.download_button("⬇️ Télécharger inputs.csv", inputs_csv, "inputs.csv", "text/csv")
+
+            df_all = _build_df_all_from_editors(st.session_state.editor_tasks, st.session_state.editor_ms)
+            df_inputs = (
+                st.session_state.editor_inputs
+                if not st.session_state.editor_inputs.empty
+                else pd.DataFrame(columns=["date", "label"])
+            )
         
     elif mode_data == "Édition (sans CSV)":
         _init_editor_state()
