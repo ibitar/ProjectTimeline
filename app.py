@@ -95,9 +95,19 @@ def parse_combined_csv(file) -> pd.DataFrame:
                             cols.get("group","group"): "group",
                             cols.get("milestone","milestone"): "milestone",
                             cols.get("depends_on","depends_on"): "depends_on"})
-    if "group" not in df: df["group"] = ""
-    if "milestone" not in df: df["milestone"] = 0
-    if "depends_on" not in df: df["depends_on"] = ""
+    if "group" not in df:
+        df["group"] = ""
+    if "milestone" not in df:
+        df["milestone"] = 0
+    if "depends_on" not in df:
+        df["depends_on"] = ""
+
+    # ensure text columns are strings for editing compatibility
+    df["id"] = df["id"].astype(str)
+    df["title"] = df["title"].astype(str)
+    df["group"] = df["group"].fillna("").astype(str)
+    df["depends_on"] = df["depends_on"].fillna("").astype(str)
+
     return df
 
 def parse_activities_csv(file) -> pd.DataFrame:
@@ -159,11 +169,20 @@ def _init_editor_state_from_df(df_all: pd.DataFrame, df_inputs: pd.DataFrame, fi
     """Initialise the editor session_state from an uploaded CSV."""
     tasks = df_all[df_all.get("milestone", 0).astype(int) != 1].copy()
     tasks = tasks[["id", "title", "start", "end", "group", "depends_on"]]
+    tasks["id"] = tasks["id"].astype(str)
+    tasks["title"] = tasks["title"].astype(str)
+    tasks["group"] = tasks["group"].fillna("").astype(str)
+    tasks["depends_on"] = tasks["depends_on"].fillna("").astype(str)
+
     tasks["start"] = pd.to_datetime(tasks["start"]).dt.date
     tasks["end"] = pd.to_datetime(tasks["end"]).dt.date
 
     ms = df_all[df_all.get("milestone", 0).astype(int) == 1].copy()
     ms = ms.rename(columns={"start": "date"})[["id", "title", "date"]]
+
+    ms["id"] = ms["id"].astype(str)
+    ms["title"] = ms["title"].astype(str)
+
     ms["date"] = pd.to_datetime(ms["date"]).dt.date
 
     st.session_state.editor_tasks = tasks
@@ -383,8 +402,8 @@ st.sidebar.caption("💡 Télécharge le PNG en bas de page.")
 # ============================== Meta Infos ==============================
 st.sidebar.divider()
 st.sidebar.caption("👤 Auteur : Ibrahim Bitar")
-st.sidebar.caption("🏷️ Version : v1.0.0")
-st.sidebar.caption("📅 Release : 24/08/2025")
+st.sidebar.caption("🏷️ Version : v1.1.0")
+st.sidebar.caption("📅 Release : 04/09/2025")
 
 # ============================== Data loading ==============================
 
