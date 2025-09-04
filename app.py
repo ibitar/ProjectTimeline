@@ -294,6 +294,7 @@ elif mode_data == "CSV séparés":
     uploaded_inputs = st.sidebar.file_uploader("inputs.csv (date,label) — optionnel", type=["csv"])
 
 st.sidebar.markdown("---")
+show_dependencies = st.sidebar.checkbox("Afficher dépendances", value=True)
 unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"])
 inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
 tabs = st.sidebar.tabs([
@@ -760,12 +761,14 @@ default_color = "gray"
 legend_handles = []
 
 # Bars + labels
+task_positions = {}
 for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
     start_num = mdates.date2num(row.start)
     end_num   = mdates.date2num(row.end)
     duration_num = end_num - start_num
     duration_days = days_between(row.start, row.end, inclusive=inclusive_duration)
     duration_weeks = duration_days / 7.0
+    task_positions[row.id] = (start_num, end_num, i)
 
     # bar
     ax.barh(
@@ -806,6 +809,29 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
         ax.text(end_num + date_label_offset,   i - jitter, right, va="center", ha="left",  fontsize=9, zorder=5, clip_on=False)
     if draw_endcaps:
         ax.vlines([start_num, end_num], ymin=i - endcap_len, ymax=i + endcap_len, zorder=5)
+
+# Dependencies arrows
+if show_dependencies:
+    for row in df_tasks.itertuples(index=False):
+        deps = [d.strip() for d in getattr(row, "depends_on", "").split(",") if d.strip()]
+        if not deps:
+            continue
+        cur = task_positions.get(row.id)
+        if not cur:
+            continue
+        start_cur, end_cur, y_cur = cur
+        for dep_id in deps:
+            prev = task_positions.get(dep_id)
+            if not prev:
+                continue
+            _, end_prev, y_prev = prev
+            ax.annotate(
+                '',
+                xy=(start_cur, y_cur),
+                xytext=(end_prev, y_prev),
+                arrowprops=dict(arrowstyle='-|>', color='black', lw=1.0),
+                zorder=3,
+            )
 
 # Légende des groupes
 for g, c in group_colors.items():
