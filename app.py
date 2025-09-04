@@ -94,19 +94,23 @@ def parse_combined_csv(file) -> pd.DataFrame:
                             cols.get("end","end"): "end",
                             cols.get("group","group"): "group",
                             cols.get("milestone","milestone"): "milestone",
-                            cols.get("depends_on","depends_on"): "depends_on"})
+                            cols.get("depends_on","depends_on"): "depends_on",
+                            cols.get("marker","marker"): "marker"})
     if "group" not in df:
         df["group"] = ""
     if "milestone" not in df:
         df["milestone"] = 0
     if "depends_on" not in df:
         df["depends_on"] = ""
+    if "marker" not in df:
+        df["marker"] = ""
 
     # ensure text columns are strings for editing compatibility
     df["id"] = df["id"].astype(str)
     df["title"] = df["title"].astype(str)
     df["group"] = df["group"].fillna("").astype(str)
     df["depends_on"] = df["depends_on"].fillna("").astype(str)
+    df["marker"] = df["marker"].fillna("").astype(str)
 
     return df
 
@@ -247,15 +251,19 @@ def _build_df_all_from_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame) -> p
     df_tasks = df_tasks.copy()
     df_ms = df_ms.copy()
     df_tasks["milestone"] = 0
-    df_tasks["group"] = df_tasks.get("group","").fillna("")
-    df_tasks["depends_on"] = df_tasks.get("depends_on","").fillna("")
-    df_tasks["marker"] = df_tasks.get("marker", "").fillna("")
+    df_tasks["group"] = df_tasks.get("group", "")
+    df_tasks["group"] = df_tasks["group"].fillna("").astype(str)
+    df_tasks["depends_on"] = df_tasks.get("depends_on", "")
+    df_tasks["depends_on"] = df_tasks["depends_on"].fillna("").astype(str)
+    df_tasks["marker"] = df_tasks.get("marker", "")
+    df_tasks["marker"] = df_tasks["marker"].fillna("").astype(str)
     df_ms = df_ms.rename(columns={"date": "start"})
     df_ms["end"] = df_ms["start"]
     df_ms["group"] = ""
     df_ms["depends_on"] = ""
     df_ms["milestone"] = 1
-    df_ms["marker"] = df_ms.get("marker", "v").fillna("v")
+    df_ms["marker"] = df_ms.get("marker", "v")
+    df_ms["marker"] = df_ms["marker"].fillna("v").astype(str)
     df_ms = df_ms[["id", "title", "start", "end", "group", "milestone", "depends_on", "marker"]]
     df_tasks = df_tasks[["id", "title", "start", "end", "group", "milestone", "depends_on", "marker"]]
     df_all = pd.concat([df_tasks, df_ms], ignore_index=True)
@@ -611,7 +619,8 @@ try:
         if "group" not in df_act: df_act["group"] = ""
         if "depends_on" not in df_act: df_act["depends_on"] = ""
         df_act["milestone"] = 0
-        df_act["marker"] = df_act.get("marker", "").fillna("")
+        df_act["marker"] = df_act.get("marker", "")
+        df_act["marker"] = df_act["marker"].fillna("").astype(str)
         if "marker" not in df_ms:
             df_ms["marker"] = "v"
         df_all = pd.concat([
