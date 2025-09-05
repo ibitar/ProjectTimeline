@@ -325,44 +325,48 @@ st.sidebar.markdown("---")
 unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"], index=1)
 inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
 tabs = st.sidebar.tabs([
-    "Axes & Grille",
-    "Plage X",
+    "Axe X",
     "Visuel",
     "Titres/Durées",
     "Dates & End-caps",
     "Jalons",
     "Inputs",
     "Dépendances",
-    "Axe X",
 ])
 
 with tabs[0]:
-    st.subheader("Axes & Grille")
-    rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5)
-    show_grid = st.checkbox("Quadrillage pointillé", value=False)
-    highlight_weekends = st.checkbox("Surligner week-ends", value=False)
-    grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0)
-    x_tick_step = st.number_input(
-        "Pas des graduations majeures (jours/semaines)",
-        min_value=1,
-        max_value=30,
-        value=1,
-        step=1,
-    )
-    date_fmt = st.text_input("Format des dates (strftime)", "%d %b %Y")
-    top_axis = st.selectbox(
-        "Graduations secondaires (haut)",
-        ["Aucune", "Mois", "Numéros de semaine"],
-        index=0,
-    )
+    st.subheader("Axe X")
+    with st.expander("Grille"):
+        rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5)
+        show_grid = st.checkbox("Quadrillage pointillé", value=False)
+        highlight_weekends = st.checkbox("Surligner week-ends", value=False)
+        grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0)
+        x_tick_step = st.number_input(
+            "Pas des graduations majeures (jours/semaines)",
+            min_value=1,
+            max_value=30,
+            value=1,
+            step=1,
+        )
+        date_fmt = st.text_input("Format des dates (strftime)", "%d %b %Y")
+        top_axis = st.selectbox(
+            "Graduations secondaires (haut)",
+            ["Aucune", "Mois", "Numéros de semaine"],
+            index=0,
+        )
+    with st.expander("Plage temporelle"):
+        x_min_str = st.text_input("X min (AAAA-MM-JJ) — optionnel", "")
+        x_max_str = st.text_input("X max (AAAA-MM-JJ) — optionnel", "")
+        x_margin_ratio = (
+            st.slider("Marge aux extrémités (%)", 0, 20, 5, step=1) / 100.0
+        )
+    with st.expander("Flèche"):
+        show_ax_arrow = st.checkbox("Afficher la flèche", value=True)
+        ax_arrow_color = st.color_picker("Couleur flèche", "#FF0000")
+        ax_arrow_lw = st.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5)
+        ax_arrow_scale = st.slider("Taille pointe flèche", 10, 60, 30, step=2)
 
 with tabs[1]:
-    st.subheader("Plage X")
-    x_min_str = st.text_input("X min (AAAA-MM-JJ) — optionnel", "")
-    x_max_str = st.text_input("X max (AAAA-MM-JJ) — optionnel", "")
-    x_margin_ratio = st.slider("Marge aux extrémités (%)", 0, 20, 5, step=1) / 100.0
-
-with tabs[2]:
     st.subheader("Visuel")
     row_bg = st.checkbox("Bandes horizontales de fond", value=False)
     row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01)
@@ -384,7 +388,7 @@ with tabs[2]:
         index=0,
     )
 
-with tabs[3]:
+with tabs[2]:
     st.subheader("Titres / Durées")
     titles_above = st.checkbox("Titres au-dessus des barres", value=True)
     title_max_fs = st.slider("Taille max titres", 6, 18, 10)
@@ -397,7 +401,7 @@ with tabs[3]:
     dur_fmt_days = st.text_input("Format durée (jours)", "{d} j")
     dur_fmt_weeks = st.text_input("Format durée (semaines)", "{w:.1f} sem")
 
-with tabs[4]:
+with tabs[3]:
     st.subheader("Dates & End-caps")
     show_start_end = st.checkbox("Étiquettes date début/fin", value=True)
     date_label_offset = st.number_input("Décalage étiquettes (jours)", value=0.2, step=0.1, format="%.1f")
@@ -405,7 +409,7 @@ with tabs[4]:
     endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05)
     show_today_line = st.checkbox("Ligne aujourd’hui", value=True)
 
-with tabs[5]:
+with tabs[4]:
     st.subheader("Jalons")
     milestones_vlines = st.checkbox("Lignes verticales jalons", value=False)
     ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1)
@@ -427,7 +431,7 @@ with tabs[5]:
         st.text_input("Format date jalon", "%d/%m") if show_ms_dates else "%d/%m"
     )
 
-with tabs[6]:
+with tabs[5]:
     st.subheader("Inputs")
     show_inputs = st.checkbox("Afficher inputs", value=True)
     inputs_position = st.selectbox(
@@ -469,7 +473,7 @@ with tabs[6]:
         else 0.5
     )
 
-with tabs[7]:
+with tabs[6]:
     st.subheader("Dépendances")
     show_dependencies = st.checkbox("Afficher dépendances", value=True)
     if show_dependencies:
@@ -491,13 +495,6 @@ with tabs[7]:
         dep_arrow_alpha = 1.0
         dep_arrow_lw = 1.0
         dep_arrow_ms = 10
-
-with tabs[8]:
-    st.subheader("Axe X (flèche)")
-    show_ax_arrow = st.checkbox("Afficher la flèche", value=True)
-    ax_arrow_color = st.color_picker("Couleur flèche", "#FF0000")
-    ax_arrow_lw = st.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5)
-    ax_arrow_scale = st.slider("Taille pointe flèche", 10, 60, 30, step=2)
 
 st.sidebar.markdown("---")
 fig_w = st.sidebar.slider("Largeur figure", 6, 20, 12)
