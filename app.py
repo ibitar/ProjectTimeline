@@ -322,26 +322,6 @@ elif mode_data == "CSV séparés":
 uploaded_holidays = st.sidebar.file_uploader("jours_feries.csv (date) — optionnel", type=["csv"])
 
 st.sidebar.markdown("---")
-show_dependencies = st.sidebar.checkbox("Afficher dépendances", value=True)
-if show_dependencies:
-    dep_conn_type = st.sidebar.selectbox("Type liaison dépendances", ["Courbe", "Orthogonale"], index=0)
-    if dep_conn_type == "Courbe":
-        dep_arrow_rad = st.sidebar.slider("Courbure flèches dépendances", -1.0, 1.0, 0.3, step=0.05)
-        dep_connstyle = f"arc3,rad={dep_arrow_rad}"
-    else:
-        dep_connstyle = "angle3,angleA=0,angleB=90"
-    dep_arrow_style = st.sidebar.selectbox("Forme flèches dépendances", ["-|>", "->", "-["], index=0)
-    dep_arrow_color = st.sidebar.color_picker("Couleur flèches dépendances", "#000000")
-    dep_arrow_alpha = st.sidebar.slider("Transparence flèches dépendances", 0.0, 1.0, 1.0, step=0.05)
-    dep_arrow_lw = st.sidebar.slider("Épaisseur flèches dépendances", 0.5, 5.0, 1.0, step=0.5)
-    dep_arrow_ms = st.sidebar.slider("Taille tête flèches dépendances", 5, 30, 10)
-else:
-    dep_connstyle = ""
-    dep_arrow_style = "-|>"
-    dep_arrow_color = "black"
-    dep_arrow_alpha = 1.0
-    dep_arrow_lw = 1.0
-    dep_arrow_ms = 10
 unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"], index=1)
 inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
 tabs = st.sidebar.tabs([
@@ -352,6 +332,7 @@ tabs = st.sidebar.tabs([
     "Dates & End-caps",
     "Jalons",
     "Inputs",
+    "Dépendances",
     "Axe X",
 ])
 
@@ -489,6 +470,29 @@ with tabs[6]:
     )
 
 with tabs[7]:
+    st.subheader("Dépendances")
+    show_dependencies = st.checkbox("Afficher dépendances", value=True)
+    if show_dependencies:
+        dep_conn_type = st.selectbox("Type liaison dépendances", ["Courbe", "Orthogonale"], index=0)
+        if dep_conn_type == "Courbe":
+            dep_arrow_rad = st.slider("Courbure flèches dépendances", -1.0, 1.0, 0.3, step=0.05)
+            dep_connstyle = f"arc3,rad={dep_arrow_rad}"
+        else:
+            dep_connstyle = "angle3,angleA=0,angleB=90"
+        dep_arrow_style = st.selectbox("Forme flèches dépendances", ["-|>", "->", "-["], index=0)
+        dep_arrow_color = st.color_picker("Couleur flèches dépendances", "#000000")
+        dep_arrow_alpha = st.slider("Transparence flèches dépendances", 0.0, 1.0, 1.0, step=0.05)
+        dep_arrow_lw = st.slider("Épaisseur flèches dépendances", 0.5, 5.0, 1.0, step=0.5)
+        dep_arrow_ms = st.slider("Taille tête flèches dépendances", 5, 30, 10)
+    else:
+        dep_connstyle = ""
+        dep_arrow_style = "-|>"
+        dep_arrow_color = "black"
+        dep_arrow_alpha = 1.0
+        dep_arrow_lw = 1.0
+        dep_arrow_ms = 10
+
+with tabs[8]:
     st.subheader("Axe X (flèche)")
     show_ax_arrow = st.checkbox("Afficher la flèche", value=True)
     ax_arrow_color = st.color_picker("Couleur flèche", "#FF0000")
