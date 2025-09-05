@@ -849,24 +849,26 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
         progress = 0.0
     progress = max(0.0, min(progress / 100.0, 1.0))
 
-    # background bar
+    base_color = group_colors.get(row.group, default_color)
+    # background bar tinted by group color
     ax.barh(
         i,
         duration_num,
         left=start_num,
         height=bar_height,
         align='center',
-        color='lightgray',
+        color=base_color,
+        alpha=0.3,
         zorder=2,
     )
-    # progress bar
+    # progress bar (full color showing advancement)
     ax.barh(
         i,
         duration_num * progress,
         left=start_num,
         height=bar_height,
         align='center',
-        color=group_colors.get(row.group, default_color),
+        color=base_color,
         zorder=3,
     )
 
