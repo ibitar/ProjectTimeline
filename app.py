@@ -296,13 +296,15 @@ def _build_df_all_from_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame) -> p
 
 # ============================== Sidebar ==============================
 
+search_term = st.sidebar.text_input("Rechercher une option", help="Filtre les options disponibles")
 st.sidebar.header("⚙️ Options")
 
 st.sidebar.subheader("Données")
 mode_data = st.sidebar.radio(
     "Source des données",
     ["CSV combiné", "CSV séparés", "Édition (sans CSV)", "Démo"],
-    horizontal=True
+    horizontal=True,
+    help="Choisir la provenance des données"
 )
 
 uploaded_combined = None
@@ -312,18 +314,51 @@ uploaded_inputs = None
 uploaded_holidays = None
 
 if mode_data == "CSV combiné":
-    uploaded_combined = st.sidebar.file_uploader("Importer le CSV combiné (id,title,start,end[,group,milestone,progress,depends_on])", type=["csv"])
-    uploaded_inputs = st.sidebar.file_uploader("Importer inputs.csv (date,label) — optionnel", type=["csv"])
+    uploaded_combined = st.sidebar.file_uploader(
+        "Importer le CSV combiné (id,title,start,end[,group,milestone,progress,depends_on])",
+        type=["csv"],
+        help="Charger un fichier unique contenant toutes les données",
+    )
+    uploaded_inputs = st.sidebar.file_uploader(
+        "Importer inputs.csv (date,label) — optionnel",
+        type=["csv"],
+        help="Ajouter des informations d'inputs",
+    )
 elif mode_data == "CSV séparés":
-    uploaded_acts = st.sidebar.file_uploader("activities.csv (id,title,start,end[,group,progress,depends_on])", type=["csv"])
-    uploaded_miles = st.sidebar.file_uploader("milestones.csv (id,title,date) ou (id,title,start,end)", type=["csv"])
-    uploaded_inputs = st.sidebar.file_uploader("inputs.csv (date,label) — optionnel", type=["csv"])
+    uploaded_acts = st.sidebar.file_uploader(
+        "activities.csv (id,title,start,end[,group,progress,depends_on])",
+        type=["csv"],
+        help="Importer les activités du projet",
+    )
+    uploaded_miles = st.sidebar.file_uploader(
+        "milestones.csv (id,title,date) ou (id,title,start,end)",
+        type=["csv"],
+        help="Importer les jalons du projet",
+    )
+    uploaded_inputs = st.sidebar.file_uploader(
+        "inputs.csv (date,label) — optionnel",
+        type=["csv"],
+        help="Ajouter des inputs au planning",
+    )
 
-uploaded_holidays = st.sidebar.file_uploader("jours_feries.csv (date) — optionnel", type=["csv"])
+uploaded_holidays = st.sidebar.file_uploader(
+    "jours_feries.csv (date) — optionnel",
+    type=["csv"],
+    help="Spécifier les jours fériés",
+)
 
 st.sidebar.markdown("---")
-unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"], index=1)
-inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
+unit = st.sidebar.selectbox(
+    "Unité de temps",
+    ["Jours", "Semaines"],
+    index=1,
+    help="Choisir l'unité d'affichage des durées",
+)
+inclusive_duration = st.sidebar.checkbox(
+    "Durée inclusive (inclure le jour de fin)",
+    value=True,
+    help="Inclure le jour de fin dans la durée",
+)
 tabs = st.sidebar.tabs([
     "Axe X",
     "Activités",
@@ -334,42 +369,44 @@ tabs = st.sidebar.tabs([
 with tabs[0]:
     st.subheader("Axe X")
     with st.expander("Grille"):
-        rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5)
-        show_grid = st.checkbox("Quadrillage pointillé", value=False)
-        highlight_weekends = st.checkbox("Surligner week-ends", value=False)
-        grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0)
+        rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5, help="Ajuste l'angle des dates sur l'axe X")
+        show_grid = st.checkbox("Quadrillage pointillé", value=False, help="Affiche un quadrillage en pointillés")
+        highlight_weekends = st.checkbox("Surligner week-ends", value=False, help="Met en évidence les week-ends")
+        grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0, help="Choix de l'axe pour la grille")
         x_tick_step = st.number_input(
             "Pas des graduations majeures (jours/semaines)",
             min_value=1,
             max_value=30,
             value=1,
             step=1,
+            help="Intervalle entre les graduations principales",
         )
-        date_fmt = st.text_input("Format des dates (strftime)", "%d %b %Y")
+        date_fmt = st.text_input("Format des dates (strftime)", "%d %b %Y", help="Format d'affichage des dates")
         top_axis = st.selectbox(
             "Graduations secondaires (haut)",
             ["Aucune", "Mois", "Numéros de semaine"],
             index=0,
+            help="Ajoute une échelle secondaire en haut",
         )
     with st.expander("Plage temporelle"):
-        x_min_str = st.text_input("X min (AAAA-MM-JJ) — optionnel", "")
-        x_max_str = st.text_input("X max (AAAA-MM-JJ) — optionnel", "")
+        x_min_str = st.text_input("X min (AAAA-MM-JJ) — optionnel", "", help="Date minimale affichée sur l'axe X")
+        x_max_str = st.text_input("X max (AAAA-MM-JJ) — optionnel", "", help="Date maximale affichée sur l'axe X")
         x_margin_ratio = (
-            st.slider("Marge aux extrémités (%)", 0, 20, 5, step=1) / 100.0
+            st.slider("Marge aux extrémités (%)", 0, 20, 5, step=1, help="Marge ajoutée aux extrémités") / 100.0
         )
     with st.expander("Flèche"):
-        show_ax_arrow = st.checkbox("Afficher la flèche", value=True)
-        ax_arrow_color = st.color_picker("Couleur flèche", "#FF0000")
-        ax_arrow_lw = st.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5)
-        ax_arrow_scale = st.slider("Taille pointe flèche", 10, 60, 30, step=2)
+        show_ax_arrow = st.checkbox("Afficher la flèche", value=True, help="Affiche une flèche indiquant le sens du temps")
+        ax_arrow_color = st.color_picker("Couleur flèche", "#FF0000", help="Couleur de la flèche de l'axe X")
+        ax_arrow_lw = st.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5, help="Épaisseur de la flèche")
+        ax_arrow_scale = st.slider("Taille pointe flèche", 10, 60, 30, step=2, help="Taille de la pointe de la flèche")
 
 with tabs[1]:
     st.subheader("Activités")
     with st.expander("Barres"):
-        row_bg = st.checkbox("Bandes horizontales de fond", value=False)
-        row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01)
-        row_bg_height = st.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05)
-        bar_height = st.slider("Hauteur des barres", 0.1, 1.0, 0.4, step=0.05)
+        row_bg = st.checkbox("Bandes horizontales de fond", value=False, help="Ajoute des bandes colorées derrière les activités")
+        row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01, help="Définit la transparence des bandes")
+        row_bg_height = st.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05, help="Hauteur des bandes de fond")
+        bar_height = st.slider("Hauteur des barres", 0.1, 1.0, 0.4, step=0.05, help="Épaisseur des barres d'activités")
         legend_loc = st.selectbox(
             "Position de la légende",
             [
@@ -384,24 +421,31 @@ with tabs[1]:
                 "center",
             ],
             index=0,
+            help="Emplacement de la légende du graphique",
         )
     with st.expander("Titres & Durées"):
-        titles_above = st.checkbox("Titres au-dessus des barres", value=True)
-        title_max_fs = st.slider("Taille max titres", 6, 18, 10)
-        title_min_fs = st.slider("Taille min titres", 4, 12, 6)
-        title_gap_px = st.slider("Décalage vertical titres (px)", 0, 20, 6)
-        title_padding_px = st.slider("Marge interne titres (px)", 0, 20, 6)
+        titles_above = st.checkbox("Titres au-dessus des barres", value=True, help="Place les titres au-dessus des barres")
+        title_max_fs = st.slider("Taille max titres", 6, 18, 10, help="Taille maximale des titres")
+        title_min_fs = st.slider("Taille min titres", 4, 12, 6, help="Taille minimale des titres")
+        title_gap_px = st.slider("Décalage vertical titres (px)", 0, 20, 6, help="Décalage vertical des titres")
+        title_padding_px = st.slider("Marge interne titres (px)", 0, 20, 6, help="Marge autour du texte du titre")
 
-        dur_in_bar = st.checkbox("Afficher la durée dans la barre", value=True)
-        dur_font = st.slider("Taille police durée", 6, 14, 8)
-        dur_fmt_days = st.text_input("Format durée (jours)", "{d} j")
-        dur_fmt_weeks = st.text_input("Format durée (semaines)", "{w:.1f} sem")
+        dur_in_bar = st.checkbox("Afficher la durée dans la barre", value=True, help="Affiche la durée à l'intérieur de la barre")
+        dur_font = st.slider("Taille police durée", 6, 14, 8, help="Taille de police pour la durée")
+        dur_fmt_days = st.text_input("Format durée (jours)", "{d} j", help="Format pour la durée en jours")
+        dur_fmt_weeks = st.text_input("Format durée (semaines)", "{w:.1f} sem", help="Format pour la durée en semaines")
     with st.expander("Dates & end-caps"):
-        show_start_end = st.checkbox("Étiquettes date début/fin", value=True)
-        date_label_offset = st.number_input("Décalage étiquettes (jours)", value=0.2, step=0.1, format="%.1f")
-        draw_endcaps = st.checkbox("Traits verticaux aux extrémités", value=False)
-        endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05)
-        show_today_line = st.checkbox("Ligne aujourd’hui", value=True)
+        show_start_end = st.checkbox("Étiquettes date début/fin", value=True, help="Affiche les dates de début et fin des tâches")
+        date_label_offset = st.number_input(
+            "Décalage étiquettes (jours)",
+            value=0.2,
+            step=0.1,
+            format="%.1f",
+            help="Décalage horizontal des étiquettes",
+        )
+        draw_endcaps = st.checkbox("Traits verticaux aux extrémités", value=False, help="Dessine des traits aux extrémités des barres")
+        endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05, help="Longueur des traits de fin")
+        show_today_line = st.checkbox("Ligne aujourd’hui", value=True, help="Affiche une ligne pour la date actuelle")
 
 with tabs[2]:
     st.subheader("Annotations")
@@ -409,83 +453,84 @@ with tabs[2]:
     with ann_tabs[0]:
         st.subheader("Jalons")
         st.caption("🔖 Ajoutez des jalons pour marquer des étapes clés.")
-        milestones_vlines = st.checkbox("Lignes verticales jalons", value=False)
-        ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1)
-        ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005)
-        anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False)
-        ms_alt_extra = st.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
-        show_ms_dates = st.checkbox("Afficher date jalon", value=True)
+        milestones_vlines = st.checkbox("Lignes verticales jalons", value=False, help="Trace des lignes verticales pour chaque jalon")
+        ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1, help="Taille des marqueurs de jalons")
+        ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005, help="Décalage vertical des jalons")
+        anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False, help="Évite le chevauchement des éléments")
+        ms_alt_extra = st.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005, help="Amplitude de l'alternance de l'offset")
+        show_ms_dates = st.checkbox("Afficher date jalon", value=True, help="Affiche la date près du jalon")
         ms_date_pos = (
-            st.selectbox("Position date jalon", ["Opposé à la flèche", "Près de la pointe"])
+            st.selectbox("Position date jalon", ["Opposé à la flèche", "Près de la pointe"], help="Position du texte de date")
             if show_ms_dates
             else None
         )
         ms_date_offset = (
-            st.slider("Offset vertical date jalon (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
+            st.slider("Offset vertical date jalon (axes fraction)", 0.0, 0.1, 0.02, step=0.005, help="Décalage vertical du texte de date")
             if show_ms_dates
             else 0.02
         )
         ms_date_fmt = (
-            st.text_input("Format date jalon", "%d/%m") if show_ms_dates else "%d/%m"
+            st.text_input("Format date jalon", "%d/%m", help="Format d'affichage de la date du jalon") if show_ms_dates else "%d/%m"
         )
     with ann_tabs[1]:
         st.subheader("Inputs")
         st.caption("📥 Renseignez des inputs pour contextualiser la timeline.")
-        show_inputs = st.checkbox("Afficher inputs", value=True)
+        show_inputs = st.checkbox("Afficher inputs", value=True, help="Active l'affichage des inputs")
         inputs_position = st.selectbox(
             "Position des inputs",
             ["Haut (flèches descendantes)", "Bas (flèches montantes)"],
             index=0,
+            help="Position des marqueurs d'inputs",
         )
         inputs_alt_extra = st.slider(
-            "Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05
+            "Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05, help="Amplitude de l'alternance verticale"
         )
         inputs_top_margin = (
-            st.slider("Marge verticale haut (Y)", 0.0, 2.0, 1.0, step=0.1)
+            st.slider("Marge verticale haut (Y)", 0.0, 2.0, 1.0, step=0.1, help="Espace au-dessus des inputs")
             if inputs_position == "Haut (flèches descendantes)"
             else 1.0
         )
         inputs_bottom_margin = (
-            st.slider("Marge verticale bas (Y)", 0.0, 2.0, 1.0, step=0.1)
+            st.slider("Marge verticale bas (Y)", 0.0, 2.0, 1.0, step=0.1, help="Espace en dessous des inputs")
             if inputs_position == "Bas (flèches montantes)"
             else 1.0
         )
-        input_arrow_len = st.slider("Longueur flèche input (Y)", 0.2, 2.0, 0.8, step=0.1)
-        show_input_dates = st.checkbox("Afficher date input", value=False)
+        input_arrow_len = st.slider("Longueur flèche input (Y)", 0.2, 2.0, 0.8, step=0.1, help="Longueur des flèches des inputs")
+        show_input_dates = st.checkbox("Afficher date input", value=False, help="Affiche la date près de l'input")
         input_date_fmt = (
-            st.text_input("Format date input", "%d/%m") if show_input_dates else "%d/%m"
+            st.text_input("Format date input", "%d/%m", help="Format d'affichage de la date") if show_input_dates else "%d/%m"
         )
         input_date_offset = (
-            st.slider("Décalage vertical date input (Y)", 0.0, 1.0, 0.15, step=0.05)
+            st.slider("Décalage vertical date input (Y)", 0.0, 1.0, 0.15, step=0.05, help="Décalage vertical de la date")
             if show_input_dates
             else 0.15
         )
         input_date_rot = (
-            st.slider("Rotation date input", 0, 90, 90, step=5) if show_input_dates else 90
+            st.slider("Rotation date input", 0, 90, 90, step=5, help="Angle de la date affichée") if show_input_dates else 90
         )
-        input_titles_in_legend = st.checkbox("Titres inputs en légende", value=False)
-        input_title_date_split = st.checkbox("Date & titre de part et d'autre", value=False)
+        input_titles_in_legend = st.checkbox("Titres inputs en légende", value=False, help="Ajoute les inputs à la légende")
+        input_title_date_split = st.checkbox("Date & titre de part et d'autre", value=False, help="Sépare la date et le titre")
         input_lr_offset = (
-            st.slider("Décalage horizontal date/titre (jours)", 0.0, 5.0, 0.5, step=0.1)
+            st.slider("Décalage horizontal date/titre (jours)", 0.0, 5.0, 0.5, step=0.1, help="Décalage horizontal entre date et titre")
             if input_title_date_split
             else 0.5
         )
 
 with tabs[3]:
     st.subheader("Dépendances")
-    show_dependencies = st.checkbox("Afficher dépendances", value=True)
+    show_dependencies = st.checkbox("Afficher dépendances", value=True, help="Affiche les liens entre les tâches")
     if show_dependencies:
-        dep_conn_type = st.selectbox("Type liaison dépendances", ["Courbe", "Orthogonale"], index=0)
+        dep_conn_type = st.selectbox("Type liaison dépendances", ["Courbe", "Orthogonale"], index=0, help="Style de connexion des dépendances")
         if dep_conn_type == "Courbe":
-            dep_arrow_rad = st.slider("Courbure flèches dépendances", -1.0, 1.0, 0.3, step=0.05)
+            dep_arrow_rad = st.slider("Courbure flèches dépendances", -1.0, 1.0, 0.3, step=0.05, help="Ajuste la courbure des flèches")
             dep_connstyle = f"arc3,rad={dep_arrow_rad}"
         else:
             dep_connstyle = "angle3,angleA=0,angleB=90"
-        dep_arrow_style = st.selectbox("Forme flèches dépendances", ["-|>", "->", "-["], index=0)
-        dep_arrow_color = st.color_picker("Couleur flèches dépendances", "#000000")
-        dep_arrow_alpha = st.slider("Transparence flèches dépendances", 0.0, 1.0, 1.0, step=0.05)
-        dep_arrow_lw = st.slider("Épaisseur flèches dépendances", 0.5, 5.0, 1.0, step=0.5)
-        dep_arrow_ms = st.slider("Taille tête flèches dépendances", 5, 30, 10)
+        dep_arrow_style = st.selectbox("Forme flèches dépendances", ["-|>", "->", "-["], index=0, help="Style de la tête des flèches")
+        dep_arrow_color = st.color_picker("Couleur flèches dépendances", "#000000", help="Couleur des flèches de dépendance")
+        dep_arrow_alpha = st.slider("Transparence flèches dépendances", 0.0, 1.0, 1.0, step=0.05, help="Opacité des flèches")
+        dep_arrow_lw = st.slider("Épaisseur flèches dépendances", 0.5, 5.0, 1.0, step=0.5, help="Épaisseur du trait des flèches")
+        dep_arrow_ms = st.slider("Taille tête flèches dépendances", 5, 30, 10, help="Taille de la pointe des flèches")
     else:
         dep_connstyle = ""
         dep_arrow_style = "-|>"
@@ -495,8 +540,8 @@ with tabs[3]:
         dep_arrow_ms = 10
 
 st.sidebar.markdown("---")
-fig_w = st.sidebar.slider("Largeur figure", 6, 20, 12)
-fig_h = st.sidebar.slider("Hauteur figure", 4, 12, 6)
+fig_w = st.sidebar.slider("Largeur figure", 6, 20, 12, help="Largeur de la figure Matplotlib")
+fig_h = st.sidebar.slider("Hauteur figure", 4, 12, 6, help="Hauteur de la figure Matplotlib")
 st.sidebar.caption("💡 Télécharge le PNG en bas de page.")
 
 # ============================== Meta Infos ==============================
@@ -518,7 +563,11 @@ try:
         df_all = parse_combined_csv(uploaded_combined)
         df_inputs = parse_inputs_csv(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
 
-        edit_csv = st.sidebar.checkbox("Éditer les données importées", value=False)
+        edit_csv = st.sidebar.checkbox(
+            "Éditer les données importées",
+            value=False,
+            help="Permet de modifier les données après import",
+        )
         if edit_csv:
             file_id = getattr(uploaded_combined, "name", "")
             if (st.session_state.get("editor_source") != "uploaded" or
