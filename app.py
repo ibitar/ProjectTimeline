@@ -327,8 +327,7 @@ inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de f
 tabs = st.sidebar.tabs([
     "Axe X",
     "Activités",
-    "Jalons",
-    "Inputs",
+    "Annotations",
     "Dépendances",
 ])
 
@@ -405,70 +404,74 @@ with tabs[1]:
         show_today_line = st.checkbox("Ligne aujourd’hui", value=True)
 
 with tabs[2]:
-    st.subheader("Jalons")
-    milestones_vlines = st.checkbox("Lignes verticales jalons", value=False)
-    ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1)
-    ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005)
-    anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False)
-    ms_alt_extra = st.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
-    show_ms_dates = st.checkbox("Afficher date jalon", value=True)
-    ms_date_pos = (
-        st.selectbox("Position date jalon", ["Opposé à la flèche", "Près de la pointe"])
-        if show_ms_dates
-        else None
-    )
-    ms_date_offset = (
-        st.slider("Offset vertical date jalon (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
-        if show_ms_dates
-        else 0.02
-    )
-    ms_date_fmt = (
-        st.text_input("Format date jalon", "%d/%m") if show_ms_dates else "%d/%m"
-    )
+    st.subheader("Annotations")
+    ann_tabs = st.tabs(["Jalons", "Inputs"])
+    with ann_tabs[0]:
+        st.subheader("Jalons")
+        st.caption("🔖 Ajoutez des jalons pour marquer des étapes clés.")
+        milestones_vlines = st.checkbox("Lignes verticales jalons", value=False)
+        ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1)
+        ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005)
+        anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False)
+        ms_alt_extra = st.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
+        show_ms_dates = st.checkbox("Afficher date jalon", value=True)
+        ms_date_pos = (
+            st.selectbox("Position date jalon", ["Opposé à la flèche", "Près de la pointe"])
+            if show_ms_dates
+            else None
+        )
+        ms_date_offset = (
+            st.slider("Offset vertical date jalon (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
+            if show_ms_dates
+            else 0.02
+        )
+        ms_date_fmt = (
+            st.text_input("Format date jalon", "%d/%m") if show_ms_dates else "%d/%m"
+        )
+    with ann_tabs[1]:
+        st.subheader("Inputs")
+        st.caption("📥 Renseignez des inputs pour contextualiser la timeline.")
+        show_inputs = st.checkbox("Afficher inputs", value=True)
+        inputs_position = st.selectbox(
+            "Position des inputs",
+            ["Haut (flèches descendantes)", "Bas (flèches montantes)"],
+            index=0,
+        )
+        inputs_alt_extra = st.slider(
+            "Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05
+        )
+        inputs_top_margin = (
+            st.slider("Marge verticale haut (Y)", 0.0, 2.0, 1.0, step=0.1)
+            if inputs_position == "Haut (flèches descendantes)"
+            else 1.0
+        )
+        inputs_bottom_margin = (
+            st.slider("Marge verticale bas (Y)", 0.0, 2.0, 1.0, step=0.1)
+            if inputs_position == "Bas (flèches montantes)"
+            else 1.0
+        )
+        input_arrow_len = st.slider("Longueur flèche input (Y)", 0.2, 2.0, 0.8, step=0.1)
+        show_input_dates = st.checkbox("Afficher date input", value=False)
+        input_date_fmt = (
+            st.text_input("Format date input", "%d/%m") if show_input_dates else "%d/%m"
+        )
+        input_date_offset = (
+            st.slider("Décalage vertical date input (Y)", 0.0, 1.0, 0.15, step=0.05)
+            if show_input_dates
+            else 0.15
+        )
+        input_date_rot = (
+            st.slider("Rotation date input", 0, 90, 90, step=5) if show_input_dates else 90
+        )
+        input_titles_in_legend = st.checkbox("Titres inputs en légende", value=False)
+        input_title_date_split = st.checkbox("Date & titre de part et d'autre", value=False)
+        input_lr_offset = (
+            st.slider("Décalage horizontal date/titre (jours)", 0.0, 5.0, 0.5, step=0.1)
+            if input_title_date_split
+            else 0.5
+        )
 
 with tabs[3]:
-    st.subheader("Inputs")
-    show_inputs = st.checkbox("Afficher inputs", value=True)
-    inputs_position = st.selectbox(
-        "Position des inputs",
-        ["Haut (flèches descendantes)", "Bas (flèches montantes)"],
-        index=0,
-    )
-    inputs_alt_extra = st.slider(
-        "Alternance hauteur inputs (ajout max)", 0.0, 1.0, 0.4, step=0.05
-    )
-    inputs_top_margin = (
-        st.slider("Marge verticale haut (Y)", 0.0, 2.0, 1.0, step=0.1)
-        if inputs_position == "Haut (flèches descendantes)"
-        else 1.0
-    )
-    inputs_bottom_margin = (
-        st.slider("Marge verticale bas (Y)", 0.0, 2.0, 1.0, step=0.1)
-        if inputs_position == "Bas (flèches montantes)"
-        else 1.0
-    )
-    input_arrow_len = st.slider("Longueur flèche input (Y)", 0.2, 2.0, 0.8, step=0.1)
-    show_input_dates = st.checkbox("Afficher date input", value=False)
-    input_date_fmt = (
-        st.text_input("Format date input", "%d/%m") if show_input_dates else "%d/%m"
-    )
-    input_date_offset = (
-        st.slider("Décalage vertical date input (Y)", 0.0, 1.0, 0.15, step=0.05)
-        if show_input_dates
-        else 0.15
-    )
-    input_date_rot = (
-        st.slider("Rotation date input", 0, 90, 90, step=5) if show_input_dates else 90
-    )
-    input_titles_in_legend = st.checkbox("Titres inputs en légende", value=False)
-    input_title_date_split = st.checkbox("Date & titre de part et d'autre", value=False)
-    input_lr_offset = (
-        st.slider("Décalage horizontal date/titre (jours)", 0.0, 5.0, 0.5, step=0.1)
-        if input_title_date_split
-        else 0.5
-    )
-
-with tabs[4]:
     st.subheader("Dépendances")
     show_dependencies = st.checkbox("Afficher dépendances", value=True)
     if show_dependencies:
