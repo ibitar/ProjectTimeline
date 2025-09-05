@@ -9,5 +9,8 @@ Example CSV (`example_tasks.csv`) now includes an optional `marker` column for m
 
 Use these markers to customize milestone icons in the Gantt chart.
 
-The sidebar also offers a **Courbure flèches dépendances** slider to bend
-dependency arrows for better readability when many activities are present.
+The sidebar offers extensive customization for dependency arrows:
+
+- choose between curved or orthogonal connectors
+- adjust curvature, color, transparency, line width and head size
+- select arrow head style (e.g., `-|>`, `->`, `-[`)

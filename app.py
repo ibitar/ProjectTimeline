@@ -313,9 +313,25 @@ elif mode_data == "CSV séparés":
 
 st.sidebar.markdown("---")
 show_dependencies = st.sidebar.checkbox("Afficher dépendances", value=True)
-dep_arrow_rad = st.sidebar.slider(
-    "Courbure flèches dépendances", -1.0, 1.0, 0.3, step=0.05
-) if show_dependencies else 0.0
+if show_dependencies:
+    dep_conn_type = st.sidebar.selectbox("Type liaison dépendances", ["Courbe", "Orthogonale"], index=0)
+    if dep_conn_type == "Courbe":
+        dep_arrow_rad = st.sidebar.slider("Courbure flèches dépendances", -1.0, 1.0, 0.3, step=0.05)
+        dep_connstyle = f"arc3,rad={dep_arrow_rad}"
+    else:
+        dep_connstyle = "angle3,angleA=0,angleB=90"
+    dep_arrow_style = st.sidebar.selectbox("Forme flèches dépendances", ["-|>", "->", "-["], index=0)
+    dep_arrow_color = st.sidebar.color_picker("Couleur flèches dépendances", "#000000")
+    dep_arrow_alpha = st.sidebar.slider("Transparence flèches dépendances", 0.0, 1.0, 1.0, step=0.05)
+    dep_arrow_lw = st.sidebar.slider("Épaisseur flèches dépendances", 0.5, 5.0, 1.0, step=0.5)
+    dep_arrow_ms = st.sidebar.slider("Taille tête flèches dépendances", 5, 30, 10)
+else:
+    dep_connstyle = ""
+    dep_arrow_style = "-|>"
+    dep_arrow_color = "black"
+    dep_arrow_alpha = 1.0
+    dep_arrow_lw = 1.0
+    dep_arrow_ms = 10
 unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"], index=1)
 inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
 tabs = st.sidebar.tabs([
@@ -903,10 +919,12 @@ if show_dependencies:
                 xy=(start_cur, y_cur),
                 xytext=(end_prev, y_prev),
                 arrowprops=dict(
-                    arrowstyle='-|>',
-                    color='black',
-                    lw=1.0,
-                    connectionstyle=f'arc3,rad={dep_arrow_rad}'
+                    arrowstyle=dep_arrow_style,
+                    color=dep_arrow_color,
+                    alpha=dep_arrow_alpha,
+                    lw=dep_arrow_lw,
+                    connectionstyle=dep_connstyle,
+                    mutation_scale=dep_arrow_ms,
                 ),
                 zorder=3,
             )
