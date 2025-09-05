@@ -68,15 +68,15 @@ def _fit_text_in_span(ax, text_str, x_center, y, x_left, x_right,
 
 def demo_dataframe():
     df = pd.DataFrame([
-        ["T1", "Cadrage du projet", "2025-09-01", "2025-09-05", "Pilotage", 0, ""],
-        ["T2", "Spécifications fonctionnelles", "2025-09-08", "2025-09-19", "Conception", 0, "T1"],
-        ["T3", "Architecture technique", "2025-09-15", "2025-09-26", "Conception", 0, "T1"],
-        ["M1", "Milestone: Specs validées", "2025-09-22", "2025-09-22", "Jalons", 1, "T2,T3"],
-        ["T4", "Développement sprint 1", "2025-09-23", "2025-10-10", "Dév", 0, "M1"],
-        ["T5", "Développement sprint 2", "2025-10-13", "2025-10-31", "Dév", 0, "T4"],
-        ["T6", "Tests & Recette", "2025-11-03", "2025-11-14", "Qualité", 0, "T5"],
-        ["M2", "Milestone: Go/No-Go", "2025-11-17", "2025-11-17", "Jalons", 1, "T6"],
-    ], columns=["id", "title", "start", "end", "group", "milestone", "depends_on"])
+        ["T1", "Cadrage du projet", "2025-09-01", "2025-09-05", "Pilotage", 0, 20, ""],
+        ["T2", "Spécifications fonctionnelles", "2025-09-08", "2025-09-19", "Conception", 0, 0, "T1"],
+        ["T3", "Architecture technique", "2025-09-15", "2025-09-26", "Conception", 0, 0, "T1"],
+        ["M1", "Milestone: Specs validées", "2025-09-22", "2025-09-22", "Jalons", 1, 0, "T2,T3"],
+        ["T4", "Développement sprint 1", "2025-09-23", "2025-10-10", "Dév", 0, 0, "M1"],
+        ["T5", "Développement sprint 2", "2025-10-13", "2025-10-31", "Dév", 0, 0, "T4"],
+        ["T6", "Tests & Recette", "2025-11-03", "2025-11-14", "Qualité", 0, 0, "T5"],
+        ["M2", "Milestone: Go/No-Go", "2025-11-17", "2025-11-17", "Jalons", 1, 0, "T6"],
+    ], columns=["id", "title", "start", "end", "group", "milestone", "progress", "depends_on"])
     return df
 
 def parse_combined_csv(file) -> pd.DataFrame:
@@ -86,7 +86,7 @@ def parse_combined_csv(file) -> pd.DataFrame:
     required = ["id","title","start","end"]
     for r in required:
         if r not in cols:
-            raise ValueError("CSV combiné attendu avec colonnes au minimum: id,title,start,end[,group,milestone,depends_on]")
+            raise ValueError("CSV combiné attendu avec colonnes au minimum: id,title,start,end[,group,milestone,progress,depends_on]")
     # harmonize
     df = df.rename(columns={cols.get("id","id"): "id",
                             cols.get("title","title"): "title",
@@ -94,12 +94,15 @@ def parse_combined_csv(file) -> pd.DataFrame:
                             cols.get("end","end"): "end",
                             cols.get("group","group"): "group",
                             cols.get("milestone","milestone"): "milestone",
+                            cols.get("progress","progress"): "progress",
                             cols.get("depends_on","depends_on"): "depends_on",
                             cols.get("marker","marker"): "marker"})
     if "group" not in df:
         df["group"] = ""
     if "milestone" not in df:
         df["milestone"] = 0
+    if "progress" not in df:
+        df["progress"] = 0
     if "depends_on" not in df:
         df["depends_on"] = ""
     if "marker" not in df:
@@ -111,14 +114,19 @@ def parse_combined_csv(file) -> pd.DataFrame:
     df["group"] = df["group"].fillna("").astype(str)
     df["depends_on"] = df["depends_on"].fillna("").astype(str)
     df["marker"] = df["marker"].fillna("").astype(str)
+    df["progress"] = pd.to_numeric(df["progress"], errors="coerce").fillna(0)
 
     return df
 
 def parse_activities_csv(file) -> pd.DataFrame:
     df = pd.read_csv(file)
+    df = df.rename(columns={c: c.lower().strip() for c in df.columns})
     needed = {"id","title","start","end"}
-    if not needed.issubset({c.lower() for c in df.columns}):
-        raise ValueError("activities.csv doit contenir: id,title,start,end[,group,depends_on]")
+    if not needed.issubset(set(df.columns)):
+        raise ValueError("activities.csv doit contenir: id,title,start,end[,group,progress,depends_on]")
+    if "progress" not in df:
+        df["progress"] = 0
+    df["progress"] = pd.to_numeric(df["progress"], errors="coerce").fillna(0)
     return df
 
 def parse_milestones_csv(file) -> pd.DataFrame:
@@ -155,12 +163,12 @@ def _init_editor_state():
             {"id": "T1", "title": "Cadrage",
              "start": datetime.date(2025, 9, 1),
              "end": datetime.date(2025, 9, 5),
-             "group": "Pilotage", "depends_on": ""},
+             "group": "Pilotage", "progress": 0, "depends_on": ""},
             {"id": "T2", "title": "Spécifications",
              "start": datetime.date(2025, 9, 8),
              "end": datetime.date(2025, 9, 19),
-             "group": "Conception", "depends_on": "T1"},
-        ], columns=["id", "title", "start", "end", "group", "depends_on"])
+             "group": "Conception", "progress": 0, "depends_on": "T1"},
+        ], columns=["id", "title", "start", "end", "group", "progress", "depends_on"])
 
     if "editor_ms" not in st.session_state:
         st.session_state.editor_ms = pd.DataFrame([
@@ -180,7 +188,8 @@ def _init_editor_state():
 def _init_editor_state_from_df(df_all: pd.DataFrame, df_inputs: pd.DataFrame, file_id: str = ""):
     """Initialise the editor session_state from an uploaded CSV."""
     tasks = df_all[df_all.get("milestone", 0).astype(int) != 1].copy()
-    tasks = tasks[["id", "title", "start", "end", "group", "depends_on"]]
+    tasks["progress"] = pd.to_numeric(tasks.get("progress", 0), errors="coerce").fillna(0)
+    tasks = tasks[["id", "title", "start", "end", "group", "progress", "depends_on"]]
     tasks["id"] = tasks["id"].astype(str)
     tasks["title"] = tasks["title"].astype(str)
     tasks["group"] = tasks["group"].fillna("").astype(str)
@@ -228,10 +237,16 @@ def _validate_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame):
             df_tasks[col] = pd.to_datetime(df_tasks[col], errors="coerce").dt.date
     if "date" in df_ms:
         df_ms["date"] = pd.to_datetime(df_ms["date"], errors="coerce").dt.date
+    if "progress" in df_tasks:
+        df_tasks["progress"] = pd.to_numeric(df_tasks["progress"], errors="coerce")
 
     # Lignes invalides
     if df_tasks[["start","end"]].isna().any().any():
         errors.append("Activités: certaines dates start/end sont invalides.")
+    if "progress" in df_tasks and df_tasks["progress"].isna().any():
+        errors.append("Activités: certaines valeurs de progress sont invalides.")
+    if "progress" in df_tasks and ((df_tasks["progress"] < 0) | (df_tasks["progress"] > 100)).any():
+        errors.append("Activités: progress doit être entre 0 et 100.")
     # start <= end
     bad = df_tasks[(df_tasks["start"] > df_tasks["end"])]
     if not bad.empty:
@@ -257,6 +272,7 @@ def _build_df_all_from_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame) -> p
     df_tasks["depends_on"] = df_tasks["depends_on"].fillna("").astype(str)
     df_tasks["marker"] = df_tasks.get("marker", "")
     df_tasks["marker"] = df_tasks["marker"].fillna("").astype(str)
+    df_tasks["progress"] = pd.to_numeric(df_tasks.get("progress", 0), errors="coerce").fillna(0)
     df_ms = df_ms.rename(columns={"date": "start"})
     df_ms["end"] = df_ms["start"]
     df_ms["group"] = ""
@@ -264,8 +280,9 @@ def _build_df_all_from_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame) -> p
     df_ms["milestone"] = 1
     df_ms["marker"] = df_ms.get("marker", "v")
     df_ms["marker"] = df_ms["marker"].fillna("v").astype(str)
-    df_ms = df_ms[["id", "title", "start", "end", "group", "milestone", "depends_on", "marker"]]
-    df_tasks = df_tasks[["id", "title", "start", "end", "group", "milestone", "depends_on", "marker"]]
+    df_ms["progress"] = 0
+    df_ms = df_ms[["id", "title", "start", "end", "group", "milestone", "progress", "depends_on", "marker"]]
+    df_tasks = df_tasks[["id", "title", "start", "end", "group", "milestone", "progress", "depends_on", "marker"]]
     df_all = pd.concat([df_tasks, df_ms], ignore_index=True)
     return df_all
 
@@ -286,10 +303,10 @@ uploaded_miles = None
 uploaded_inputs = None
 
 if mode_data == "CSV combiné":
-    uploaded_combined = st.sidebar.file_uploader("Importer le CSV combiné (id,title,start,end[,group,milestone,depends_on])", type=["csv"])
+    uploaded_combined = st.sidebar.file_uploader("Importer le CSV combiné (id,title,start,end[,group,milestone,progress,depends_on])", type=["csv"])
     uploaded_inputs = st.sidebar.file_uploader("Importer inputs.csv (date,label) — optionnel", type=["csv"])
 elif mode_data == "CSV séparés":
-    uploaded_acts = st.sidebar.file_uploader("activities.csv (id,title,start,end[,group,depends_on])", type=["csv"])
+    uploaded_acts = st.sidebar.file_uploader("activities.csv (id,title,start,end[,group,progress,depends_on])", type=["csv"])
     uploaded_miles = st.sidebar.file_uploader("milestones.csv (id,title,date) ou (id,title,start,end)", type=["csv"])
     uploaded_inputs = st.sidebar.file_uploader("inputs.csv (date,label) — optionnel", type=["csv"])
 
@@ -457,7 +474,7 @@ try:
                 _init_editor_state_from_df(df_all, df_inputs, file_id)
 
             st.subheader("✍️ Édition des données importées")
-            st.markdown("**Activités** (id, title, start, end, group, depends_on)")
+            st.markdown("**Activités** (id, title, start, end, group, progress, depends_on)")
             editor_tasks = st.data_editor(
                 st.session_state.editor_tasks,
                 num_rows="dynamic",
@@ -468,6 +485,7 @@ try:
                     "start": st.column_config.DateColumn("start"),
                     "end": st.column_config.DateColumn("end"),
                     "group": st.column_config.TextColumn("group", width="small"),
+                    "progress": st.column_config.NumberColumn("progress", min_value=0, max_value=100, step=1),
                     "depends_on": st.column_config.TextColumn("depends_on", help="IDs séparés par des virgules"),
                 },
                 key="editor_tasks_uploaded",
@@ -535,7 +553,7 @@ try:
         _init_editor_state()
         st.subheader("✍️ Édition des données (sans CSV)")
 
-        st.markdown("**Activités** (id, title, start, end, group, depends_on)")
+        st.markdown("**Activités** (id, title, start, end, group, progress, depends_on)")
         editor_tasks = st.data_editor(
             st.session_state.editor_tasks,
             num_rows="dynamic",
@@ -546,6 +564,7 @@ try:
                 "start": st.column_config.DateColumn("start"),
                 "end": st.column_config.DateColumn("end"),
                 "group": st.column_config.TextColumn("group", width="small"),
+                "progress": st.column_config.NumberColumn("progress", min_value=0, max_value=100, step=1),
                 "depends_on": st.column_config.TextColumn("depends_on", help="IDs séparés par des virgules")
             },
             key="editor_tasks_widget"
@@ -620,16 +639,19 @@ try:
         df_ms  = df_ms.rename(columns={c: c.lower() for c in df_ms.columns})
         if "group" not in df_act: df_act["group"] = ""
         if "depends_on" not in df_act: df_act["depends_on"] = ""
+        if "progress" not in df_act: df_act["progress"] = 0
+        df_act["progress"] = pd.to_numeric(df_act["progress"], errors="coerce").fillna(0)
         df_act["milestone"] = 0
         df_act["marker"] = df_act.get("marker", "")
         df_act["marker"] = df_act["marker"].fillna("").astype(str)
         if "marker" not in df_ms:
             df_ms["marker"] = "v"
+        df_ms["progress"] = 0
         df_all = pd.concat([
-            df_act[["id","title","start","end","group","milestone","depends_on","marker"]],
+            df_act[["id","title","start","end","group","milestone","progress","depends_on","marker"]],
             df_ms[["id","title","start","end","marker","milestone"]]
-                .assign(group="", depends_on="")[
-                    ["id","title","start","end","group","milestone","depends_on","marker"]
+                .assign(group="", progress=0, depends_on="")[
+                    ["id","title","start","end","group","milestone","progress","depends_on","marker"]
                 ],
         ], ignore_index=True)
         df_inputs = parse_inputs_csv(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
@@ -652,9 +674,10 @@ if "df_all" not in locals():
     df_all = pd.DataFrame(columns=["id","title","start","end","group","milestone","depends_on"])
     df_inputs = pd.DataFrame(columns=["date","label"])
 
-# Parse dates
+# Parse dates and progress
 df_all["start"] = pd.to_datetime(df_all["start"]).dt.date
 df_all["end"]   = pd.to_datetime(df_all["end"]).dt.date
+df_all["progress"] = pd.to_numeric(df_all.get("progress", 0), errors="coerce").fillna(0)
 df_all = df_all.sort_values("start").reset_index(drop=True)
 df_ms = df_all[(df_all.get("milestone", 0).astype(int) == 1) | (df_all["start"] == df_all["end"])].copy()
 df_tasks = df_all[~df_all.index.isin(df_ms.index)].copy()
@@ -771,15 +794,32 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
     duration_weeks = duration_days / 7.0
     task_positions[row.id] = (start_num, end_num, i)
 
-    # bar
+    progress = getattr(row, "progress", 0)
+    try:
+        progress = float(progress)
+    except Exception:
+        progress = 0.0
+    progress = max(0.0, min(progress / 100.0, 1.0))
+
+    # background bar
     ax.barh(
         i,
         duration_num,
         left=start_num,
         height=bar_height,
         align='center',
-        color=group_colors.get(row.group, default_color),
+        color='lightgray',
         zorder=2,
+    )
+    # progress bar
+    ax.barh(
+        i,
+        duration_num * progress,
+        left=start_num,
+        height=bar_height,
+        align='center',
+        color=group_colors.get(row.group, default_color),
+        zorder=3,
     )
 
     # title above (with anti-overlap by alternating height)
