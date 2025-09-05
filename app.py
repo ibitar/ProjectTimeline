@@ -326,9 +326,7 @@ unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"], index=1)
 inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
 tabs = st.sidebar.tabs([
     "Axe X",
-    "Visuel",
-    "Titres/Durées",
-    "Dates & End-caps",
+    "Activités",
     "Jalons",
     "Inputs",
     "Dépendances",
@@ -367,49 +365,46 @@ with tabs[0]:
         ax_arrow_scale = st.slider("Taille pointe flèche", 10, 60, 30, step=2)
 
 with tabs[1]:
-    st.subheader("Visuel")
-    row_bg = st.checkbox("Bandes horizontales de fond", value=False)
-    row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01)
-    row_bg_height = st.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05)
-    bar_height = st.slider("Hauteur des barres", 0.1, 1.0, 0.4, step=0.05)
-    legend_loc = st.selectbox(
-        "Position de la légende",
-        [
-            "upper left",
-            "upper right",
-            "lower left",
-            "lower right",
-            "center left",
-            "center right",
-            "upper center",
-            "lower center",
-            "center",
-        ],
-        index=0,
-    )
+    st.subheader("Activités")
+    with st.expander("Barres"):
+        row_bg = st.checkbox("Bandes horizontales de fond", value=False)
+        row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01)
+        row_bg_height = st.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05)
+        bar_height = st.slider("Hauteur des barres", 0.1, 1.0, 0.4, step=0.05)
+        legend_loc = st.selectbox(
+            "Position de la légende",
+            [
+                "upper left",
+                "upper right",
+                "lower left",
+                "lower right",
+                "center left",
+                "center right",
+                "upper center",
+                "lower center",
+                "center",
+            ],
+            index=0,
+        )
+    with st.expander("Titres & Durées"):
+        titles_above = st.checkbox("Titres au-dessus des barres", value=True)
+        title_max_fs = st.slider("Taille max titres", 6, 18, 10)
+        title_min_fs = st.slider("Taille min titres", 4, 12, 6)
+        title_gap_px = st.slider("Décalage vertical titres (px)", 0, 20, 6)
+        title_padding_px = st.slider("Marge interne titres (px)", 0, 20, 6)
+
+        dur_in_bar = st.checkbox("Afficher la durée dans la barre", value=True)
+        dur_font = st.slider("Taille police durée", 6, 14, 8)
+        dur_fmt_days = st.text_input("Format durée (jours)", "{d} j")
+        dur_fmt_weeks = st.text_input("Format durée (semaines)", "{w:.1f} sem")
+    with st.expander("Dates & end-caps"):
+        show_start_end = st.checkbox("Étiquettes date début/fin", value=True)
+        date_label_offset = st.number_input("Décalage étiquettes (jours)", value=0.2, step=0.1, format="%.1f")
+        draw_endcaps = st.checkbox("Traits verticaux aux extrémités", value=False)
+        endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05)
+        show_today_line = st.checkbox("Ligne aujourd’hui", value=True)
 
 with tabs[2]:
-    st.subheader("Titres / Durées")
-    titles_above = st.checkbox("Titres au-dessus des barres", value=True)
-    title_max_fs = st.slider("Taille max titres", 6, 18, 10)
-    title_min_fs = st.slider("Taille min titres", 4, 12, 6)
-    title_gap_px = st.slider("Décalage vertical titres (px)", 0, 20, 6)
-    title_padding_px = st.slider("Marge interne titres (px)", 0, 20, 6)
-
-    dur_in_bar = st.checkbox("Afficher la durée dans la barre", value=True)
-    dur_font = st.slider("Taille police durée", 6, 14, 8)
-    dur_fmt_days = st.text_input("Format durée (jours)", "{d} j")
-    dur_fmt_weeks = st.text_input("Format durée (semaines)", "{w:.1f} sem")
-
-with tabs[3]:
-    st.subheader("Dates & End-caps")
-    show_start_end = st.checkbox("Étiquettes date début/fin", value=True)
-    date_label_offset = st.number_input("Décalage étiquettes (jours)", value=0.2, step=0.1, format="%.1f")
-    draw_endcaps = st.checkbox("Traits verticaux aux extrémités", value=False)
-    endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05)
-    show_today_line = st.checkbox("Ligne aujourd’hui", value=True)
-
-with tabs[4]:
     st.subheader("Jalons")
     milestones_vlines = st.checkbox("Lignes verticales jalons", value=False)
     ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1)
@@ -431,7 +426,7 @@ with tabs[4]:
         st.text_input("Format date jalon", "%d/%m") if show_ms_dates else "%d/%m"
     )
 
-with tabs[5]:
+with tabs[3]:
     st.subheader("Inputs")
     show_inputs = st.checkbox("Afficher inputs", value=True)
     inputs_position = st.selectbox(
@@ -473,7 +468,7 @@ with tabs[5]:
         else 0.5
     )
 
-with tabs[6]:
+with tabs[4]:
     st.subheader("Dépendances")
     show_dependencies = st.checkbox("Afficher dépendances", value=True)
     if show_dependencies:
