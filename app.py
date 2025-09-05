@@ -358,6 +358,11 @@ with tabs[0]:
         step=1,
     )
     date_fmt = st.text_input("Format des dates (strftime)", "%d %b %Y")
+    top_axis = st.selectbox(
+        "Graduations secondaires (haut)",
+        ["Aucune", "Mois", "Numéros de semaine"],
+        index=0,
+    )
 
 with tabs[1]:
     st.subheader("Plage X")
@@ -1086,6 +1091,15 @@ else:
     # step in weeks
     ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MO, interval=int(x_tick_step)))
 ax.xaxis.set_major_formatter(mdates.DateFormatter(date_fmt))
+if top_axis != "Aucune":
+    sec_ax = ax.secondary_xaxis('top')
+    sec_ax.set_xlim(x_min_num, x_max_num)
+    if top_axis == "Mois":
+        sec_ax.xaxis.set_major_locator(mdates.MonthLocator())
+        sec_ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+    else:
+        sec_ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MO))
+        sec_ax.xaxis.set_major_formatter(mdates.DateFormatter("%W"))
 plt.setp(ax.get_xticklabels(), rotation=rot, ha="right")
 
 # Grid
