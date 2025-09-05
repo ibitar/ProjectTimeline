@@ -156,6 +156,13 @@ def parse_inputs_csv(file) -> pd.DataFrame:
     df = df.rename(columns={c: c.lower() for c in df.columns})
     return df[["date","label"]]
 
+def parse_holidays_csv(file) -> pd.DataFrame:
+    df = pd.read_csv(file)
+    if "date" not in {c.lower() for c in df.columns}:
+        raise ValueError("jours_feries.csv doit contenir: date")
+    df = df.rename(columns={c: c.lower() for c in df.columns})
+    return df[["date"]]
+
 import datetime
 
 def _init_editor_state():
@@ -302,6 +309,7 @@ uploaded_combined = None
 uploaded_acts = None
 uploaded_miles = None
 uploaded_inputs = None
+uploaded_holidays = None
 
 if mode_data == "CSV combiné":
     uploaded_combined = st.sidebar.file_uploader("Importer le CSV combiné (id,title,start,end[,group,milestone,progress,depends_on])", type=["csv"])
@@ -310,6 +318,8 @@ elif mode_data == "CSV séparés":
     uploaded_acts = st.sidebar.file_uploader("activities.csv (id,title,start,end[,group,progress,depends_on])", type=["csv"])
     uploaded_miles = st.sidebar.file_uploader("milestones.csv (id,title,date) ou (id,title,start,end)", type=["csv"])
     uploaded_inputs = st.sidebar.file_uploader("inputs.csv (date,label) — optionnel", type=["csv"])
+
+uploaded_holidays = st.sidebar.file_uploader("jours_feries.csv (date) — optionnel", type=["csv"])
 
 st.sidebar.markdown("---")
 show_dependencies = st.sidebar.checkbox("Afficher dépendances", value=True)
@@ -349,6 +359,7 @@ with tabs[0]:
     st.subheader("Axes & Grille")
     rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5)
     show_grid = st.checkbox("Quadrillage pointillé", value=False)
+    highlight_weekends = st.checkbox("Surligner week-ends", value=False)
     grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0)
     x_tick_step = st.number_input(
         "Pas des graduations majeures (jours/semaines)",
@@ -705,6 +716,7 @@ try:
                 ],
         ], ignore_index=True)
         df_inputs = parse_inputs_csv(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
+    df_holidays = parse_holidays_csv(uploaded_holidays) if uploaded_holidays else pd.DataFrame(columns=["date"])
 except Exception as e:
     st.error(f"Erreur lors du chargement des données : {e}")
     st.stop()
@@ -739,6 +751,8 @@ df_tasks["marker"] = df_tasks["marker"].fillna("").astype(str)
 
 if not df_inputs.empty:
     df_inputs["date"] = pd.to_datetime(df_inputs["date"]).dt.date
+if not df_holidays.empty:
+    df_holidays["date"] = pd.to_datetime(df_holidays["date"]).dt.date
 
 # ============================== X range (robuste) ==============================
 
@@ -1070,6 +1084,12 @@ if legend_handles:
 
 # X axis limits and ticks
 ax.set_xlim(x_min_num, x_max_num)
+if highlight_weekends or not df_holidays.empty:
+    holidays = set(df_holidays["date"]) if not df_holidays.empty else set()
+    for day_num in range(math.floor(x_min_num), math.ceil(x_max_num)):
+        day = mdates.num2date(day_num).date()
+        if (highlight_weekends and day.weekday() in {5, 6}) or (day in holidays):
+            ax.axvspan(day_num, day_num + 1, color='0.9', zorder=1)
 if show_today_line:
     today_num = mdates.date2num(pd.Timestamp.today().date())
     ax.axvline(today_num, color='red', linestyle='--', alpha=0.5, zorder=1)
