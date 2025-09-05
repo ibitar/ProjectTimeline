@@ -354,6 +354,7 @@ with tabs[4]:
     date_label_offset = st.number_input("Décalage étiquettes (jours)", value=0.2, step=0.1, format="%.1f")
     draw_endcaps = st.checkbox("Traits verticaux aux extrémités", value=True)
     endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05)
+    show_today_line = st.checkbox("Ligne aujourd’hui", value=True)
 
 with tabs[5]:
     st.subheader("Jalons")
@@ -965,6 +966,9 @@ if legend_handles:
 
 # X axis limits and ticks
 ax.set_xlim(x_min_num, x_max_num)
+if show_today_line:
+    today_num = mdates.date2num(pd.Timestamp.today().date())
+    ax.axvline(today_num, color='red', linestyle='--', alpha=0.5, zorder=1)
 y_min, y_max = -0.5, max(2.0, len(df_tasks) + inputs_top_margin + 0.8)
 if show_inputs and not df_inputs.empty:
     if inputs_position == "Haut (flèches descendantes)":
