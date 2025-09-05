@@ -479,6 +479,8 @@ with tabs[6]:
 
 with tabs[7]:
     st.subheader("Axe X (flèche)")
+    show_ax_arrow = st.checkbox("Afficher la flèche", value=True)
+    ax_arrow_color = st.color_picker("Couleur flèche", "#FF0000")
     ax_arrow_lw = st.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5)
     ax_arrow_scale = st.slider("Taille pointe flèche", 10, 60, 30, step=2)
 
@@ -1111,14 +1113,21 @@ for sp in ax.spines.values():
     sp.set_visible(False)
 
 # X-axis arrow (bottom)
-ax.annotate(
-    '',
-    xy=(x_max_num, 0.0), xycoords=('data', 'axes fraction'),
-    xytext=(x_min_num, 0.0), textcoords=('data', 'axes fraction'),
-    arrowprops=dict(arrowstyle='-|>', color='red', lw=ax_arrow_lw,
-                    shrinkA=0, shrinkB=0, mutation_scale=ax_arrow_scale),
-    zorder=6
-)
+if show_ax_arrow:
+    ax.annotate(
+        '',
+        xy=(x_max_num, 0.0), xycoords=('data', 'axes fraction'),
+        xytext=(x_min_num, 0.0), textcoords=('data', 'axes fraction'),
+        arrowprops=dict(
+            arrowstyle='-|>',
+            color=ax_arrow_color,
+            lw=ax_arrow_lw,
+            shrinkA=0,
+            shrinkB=0,
+            mutation_scale=ax_arrow_scale,
+        ),
+        zorder=6,
+    )
 
 ax.set_xlabel("")
 ax.set_ylabel("")
