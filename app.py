@@ -352,6 +352,21 @@ with tabs[2]:
     row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01)
     row_bg_height = st.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05)
     bar_height = st.slider("Hauteur des barres", 0.1, 1.0, 0.4, step=0.05)
+    legend_loc = st.selectbox(
+        "Position de la légende",
+        [
+            "upper left",
+            "upper right",
+            "lower left",
+            "lower right",
+            "center left",
+            "center right",
+            "upper center",
+            "lower center",
+            "center",
+        ],
+        index=0,
+    )
 
 with tabs[3]:
     st.subheader("Titres / Durées")
@@ -381,7 +396,7 @@ with tabs[5]:
     ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005)
     anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False)
     ms_alt_extra = st.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
-    show_ms_dates = st.checkbox("Afficher date jalon", value=False)
+    show_ms_dates = st.checkbox("Afficher date jalon", value=True)
     ms_date_pos = (
         st.selectbox("Position date jalon", ["Opposé à la flèche", "Près de la pointe"])
         if show_ms_dates
@@ -538,10 +553,18 @@ try:
                 st.success("Modifications appliquées.")
 
             if export_btn:
-                combined_csv = _build_df_all_from_editors(editor_tasks, editor_ms).to_csv(index=False).encode("utf-8")
-                st.download_button("⬇️ Télécharger combined.csv", combined_csv, "combined.csv", "text/csv")
-                inputs_csv = editor_inputs.to_csv(index=False).encode("utf-8")
-                st.download_button("⬇️ Télécharger inputs.csv", inputs_csv, "inputs.csv", "text/csv")
+                df_export = _build_df_all_from_editors(editor_tasks, editor_ms)
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                    df_export.to_excel(writer, sheet_name="planning", index=False)
+                    editor_inputs.to_excel(writer, sheet_name="inputs", index=False)
+                buffer.seek(0)
+                st.download_button(
+                    "⬇️ Télécharger donnees.xlsx",
+                    buffer.getvalue(),
+                    "donnees.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
 
             df_all = _build_df_all_from_editors(st.session_state.editor_tasks, st.session_state.editor_ms)
             df_inputs = (
@@ -1008,7 +1031,7 @@ if show_inputs and not df_inputs.empty:
             )
 
 if legend_handles:
-    ax.legend(handles=legend_handles, loc="upper left", frameon=False)
+    ax.legend(handles=legend_handles, loc=legend_loc, frameon=False)
 
 # X axis limits and ticks
 ax.set_xlim(x_min_num, x_max_num)
