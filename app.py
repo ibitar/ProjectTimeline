@@ -313,6 +313,9 @@ elif mode_data == "CSV séparés":
 
 st.sidebar.markdown("---")
 show_dependencies = st.sidebar.checkbox("Afficher dépendances", value=True)
+dep_arrow_rad = st.sidebar.slider(
+    "Courbure flèches dépendances", -1.0, 1.0, 0.3, step=0.05
+) if show_dependencies else 0.0
 unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"], index=1)
 inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
 tabs = st.sidebar.tabs([
@@ -899,7 +902,12 @@ if show_dependencies:
                 '',
                 xy=(start_cur, y_cur),
                 xytext=(end_prev, y_prev),
-                arrowprops=dict(arrowstyle='-|>', color='black', lw=1.0),
+                arrowprops=dict(
+                    arrowstyle='-|>',
+                    color='black',
+                    lw=1.0,
+                    connectionstyle=f'arc3,rad={dep_arrow_rad}'
+                ),
                 zorder=3,
             )
 
