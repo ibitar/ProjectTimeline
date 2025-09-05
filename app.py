@@ -144,6 +144,7 @@ def parse_milestones_csv(file) -> pd.DataFrame:
         )
     if "marker" not in df:
         df["marker"] = "v"
+    df["marker"] = df["marker"].replace("", "v").fillna("v").astype(str)
     df["milestone"] = 1
     return df
 
@@ -206,7 +207,7 @@ def _init_editor_state_from_df(df_all: pd.DataFrame, df_inputs: pd.DataFrame, fi
 
     ms["id"] = ms["id"].astype(str)
     ms["title"] = ms["title"].astype(str)
-    ms["marker"] = ms["marker"].fillna("v").astype(str)
+    ms["marker"] = ms["marker"].replace("", "v").fillna("v").astype(str)
 
     ms["date"] = pd.to_datetime(ms["date"]).dt.date
 
@@ -279,7 +280,7 @@ def _build_df_all_from_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame) -> p
     df_ms["depends_on"] = ""
     df_ms["milestone"] = 1
     df_ms["marker"] = df_ms.get("marker", "v")
-    df_ms["marker"] = df_ms["marker"].fillna("v").astype(str)
+    df_ms["marker"] = df_ms["marker"].replace("", "v").fillna("v").astype(str)
     df_ms["progress"] = 0
     df_ms = df_ms[["id", "title", "start", "end", "group", "milestone", "progress", "depends_on", "marker"]]
     df_tasks = df_tasks[["id", "title", "start", "end", "group", "milestone", "progress", "depends_on", "marker"]]
@@ -312,7 +313,7 @@ elif mode_data == "CSV séparés":
 
 st.sidebar.markdown("---")
 show_dependencies = st.sidebar.checkbox("Afficher dépendances", value=True)
-unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"])
+unit = st.sidebar.selectbox("Unité de temps", ["Jours", "Semaines"], index=1)
 inclusive_duration = st.sidebar.checkbox("Durée inclusive (inclure le jour de fin)", value=True)
 tabs = st.sidebar.tabs([
     "Axes & Grille",
@@ -328,7 +329,7 @@ tabs = st.sidebar.tabs([
 with tabs[0]:
     st.subheader("Axes & Grille")
     rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5)
-    show_grid = st.checkbox("Quadrillage pointillé", value=True)
+    show_grid = st.checkbox("Quadrillage pointillé", value=False)
     grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0)
     x_tick_step = st.number_input(
         "Pas des graduations majeures (jours/semaines)",
@@ -347,7 +348,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Visuel")
-    row_bg = st.checkbox("Bandes horizontales de fond", value=True)
+    row_bg = st.checkbox("Bandes horizontales de fond", value=False)
     row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01)
     row_bg_height = st.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05)
     bar_height = st.slider("Hauteur des barres", 0.1, 1.0, 0.4, step=0.05)
@@ -369,16 +370,16 @@ with tabs[4]:
     st.subheader("Dates & End-caps")
     show_start_end = st.checkbox("Étiquettes date début/fin", value=True)
     date_label_offset = st.number_input("Décalage étiquettes (jours)", value=0.2, step=0.1, format="%.1f")
-    draw_endcaps = st.checkbox("Traits verticaux aux extrémités", value=True)
+    draw_endcaps = st.checkbox("Traits verticaux aux extrémités", value=False)
     endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05)
     show_today_line = st.checkbox("Ligne aujourd’hui", value=True)
 
 with tabs[5]:
     st.subheader("Jalons")
-    milestones_vlines = st.checkbox("Lignes verticales jalons", value=True)
+    milestones_vlines = st.checkbox("Lignes verticales jalons", value=False)
     ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1)
-    ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.02, step=0.005)
-    anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=True)
+    ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005)
+    anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False)
     ms_alt_extra = st.slider("Alternance offset jalons (ajout max)", 0.0, 0.08, 0.03, step=0.005)
     show_ms_dates = st.checkbox("Afficher date jalon", value=False)
     ms_date_pos = (
@@ -681,6 +682,11 @@ df_all["progress"] = pd.to_numeric(df_all.get("progress", 0), errors="coerce").f
 df_all = df_all.sort_values("start").reset_index(drop=True)
 df_ms = df_all[(df_all.get("milestone", 0).astype(int) == 1) | (df_all["start"] == df_all["end"])].copy()
 df_tasks = df_all[~df_all.index.isin(df_ms.index)].copy()
+
+df_ms["marker"] = df_ms.get("marker", "v")
+df_ms["marker"] = df_ms["marker"].replace("", "v").fillna("v").astype(str)
+df_tasks["marker"] = df_tasks.get("marker", "")
+df_tasks["marker"] = df_tasks["marker"].fillna("").astype(str)
 
 if not df_inputs.empty:
     df_inputs["date"] = pd.to_datetime(df_inputs["date"]).dt.date
