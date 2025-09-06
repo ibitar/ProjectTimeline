@@ -56,7 +56,6 @@ def make_fig(df: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         height=400,
         dragmode="pan",
-        editable=True,
         margin=dict(l=20, r=20, t=30, b=20),
         shapes=list(fig.layout.shapes),
         showlegend=False,
@@ -78,7 +77,7 @@ html_template = Template(
 <script>
 const plotly_data = $fig_json;
 var gd = document.getElementById('gantt');
-Plotly.newPlot(gd, plotly_data.data, plotly_data.layout);
+Plotly.newPlot(gd, plotly_data.data, plotly_data.layout, {editable: true});
 gd.on('plotly_click', function(e){
   const msg = {"event": "click", "point": e.points[0]};
   window.parent.postMessage({"isStreamlitMessage": true, "type": "streamlit:setComponentValue", "value": JSON.stringify(msg)}, '*');
