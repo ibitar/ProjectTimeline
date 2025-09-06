@@ -471,14 +471,6 @@ with tabs[1]:
         endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05, help="Longueur des traits de fin")
         show_today_line = st.checkbox("Ligne aujourd’hui", value=True, help="Affiche une ligne pour la date actuelle")
 
-    with st.expander("Couleurs des groupes"):
-        for i, g in enumerate(unique_groups):
-            color_key = f"group_color_{g}".replace(" ", "_")
-            picked = st.color_picker(g, st.session_state.group_colors.get(g, "#000000"), key=color_key)
-            st.session_state.group_colors[g] = picked
-
-group_colors = {g: st.session_state.group_colors.get(g, "gray") for g in unique_groups}
-
 with tabs[2]:
     st.subheader("Annotations")
     ann_tabs = st.tabs(["Jalons", "Inputs"])
@@ -877,6 +869,15 @@ if "group_colors" not in st.session_state:
 for i, g in enumerate(unique_groups):
     default = mcolors.to_hex(group_palette[i % len(group_palette)])
     st.session_state.group_colors.setdefault(g, default)
+
+with tabs[1]:
+    with st.expander("Couleurs des groupes"):
+        for i, g in enumerate(unique_groups):
+            color_key = f"group_color_{g}".replace(" ", "_")
+            picked = st.color_picker(g, st.session_state.group_colors.get(g, "#000000"), key=color_key)
+            st.session_state.group_colors[g] = picked
+
+group_colors = {g: st.session_state.group_colors.get(g, "gray") for g in unique_groups}
 
 if not df_inputs.empty:
     df_inputs["date"] = pd.to_datetime(df_inputs["date"]).dt.date
