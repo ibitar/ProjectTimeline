@@ -360,6 +360,8 @@ uploaded_holidays = st.sidebar.file_uploader(
 
 st.sidebar.markdown("---")
 planning_title = st.sidebar.text_input("Titre du planning", "Planning")
+planning_title_size = st.sidebar.slider("Taille du titre", 8, 32, 16)
+planning_title_color = st.sidebar.color_picker("Couleur du titre", "#000000")
 unit = st.sidebar.selectbox(
     "Unité de temps",
     ["Jours", "Semaines"],
@@ -1423,7 +1425,7 @@ if show_ax_arrow:
 
 ax.set_xlabel("")
 ax.set_ylabel("")
-ax.set_title(planning_title)
+ax.set_title(planning_title, fontsize=planning_title_size, color=planning_title_color)
 
 st.pyplot(fig, use_container_width=True)
 
