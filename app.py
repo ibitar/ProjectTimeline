@@ -12,6 +12,7 @@ import matplotlib.dates as mdates
 import matplotlib.transforms as transforms
 from matplotlib.lines import Line2D
 from datetime import datetime, date
+from itertools import zip_longest
 
 st.set_page_config(page_title="Gantt Planner", layout="wide")
 
@@ -358,6 +359,7 @@ uploaded_holidays = st.sidebar.file_uploader(
 )
 
 st.sidebar.markdown("---")
+planning_title = st.sidebar.text_input("Titre du planning", "Planning")
 unit = st.sidebar.selectbox(
     "Unité de temps",
     ["Jours", "Semaines"],
@@ -958,7 +960,8 @@ group_palette = plt.get_cmap("tab20").colors
 unique_groups = df_tasks["group"].dropna().unique()
 group_colors = {g: group_palette[i % len(group_palette)] for i, g in enumerate(unique_groups)}
 default_color = "gray"
-legend_handles = []
+legend_groups = []
+legend_other = []
 
 # Bars + labels
 task_positions = {}
@@ -1079,7 +1082,7 @@ if show_dependencies:
 
 # Légende des groupes
 for g, c in group_colors.items():
-    legend_handles.append(Line2D([0], [0], color=c, linewidth=6, label=g))
+    legend_groups.append(Line2D([0], [0], color=c, linewidth=6, label=g))
 
 # Milestones at y=0
 palette = plt.get_cmap("tab10").colors
@@ -1152,7 +1155,7 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
             clip_on=False,
         )
 
-    legend_handles.append(
+    legend_other.append(
         Line2D(
             [0],
             [0],
@@ -1197,10 +1200,10 @@ if show_inputs and not df_inputs.empty:
 
         if input_titles_in_legend:
             marker = "v" if inputs_position == "Haut (flèches descendantes)" else "^"
-            legend_handles.append(Line2D([0],[0], marker=marker, linestyle="None",
-                                         markersize=ms_markersize,
-                                         markerfacecolor="black", markeredgecolor="black",
-                                         label=row.label))
+            legend_other.append(Line2D([0],[0], marker=marker, linestyle="None",
+                                        markersize=ms_markersize,
+                                        markerfacecolor="black", markeredgecolor="black",
+                                        label=row.label))
         else:
             ax.text(
                 x_label,
@@ -1228,17 +1231,24 @@ if show_inputs and not df_inputs.empty:
                 clip_on=False,
             )
 
-if legend_handles:
+handles = []
+for g, o in zip_longest(legend_groups, legend_other):
+    if g:
+        handles.append(g)
+    if o:
+        handles.append(o)
+
+if handles:
     if legend_loc == "outside right":
-        ax.legend(handles=legend_handles, loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
+        ax.legend(handles=handles, ncol=2, loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
     elif legend_loc == "outside left":
-        ax.legend(handles=legend_handles, loc="center right", bbox_to_anchor=(-0.02, 0.5), frameon=False)
+        ax.legend(handles=handles, ncol=2, loc="center right", bbox_to_anchor=(-0.02, 0.5), frameon=False)
     elif legend_loc == "outside bottom":
-        ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.15), frameon=False)
+        ax.legend(handles=handles, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.15), frameon=False)
     elif legend_loc == "outside top":
-        ax.legend(handles=legend_handles, loc="lower center", bbox_to_anchor=(0.5, 1.15), frameon=False)
+        ax.legend(handles=handles, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 1.15), frameon=False)
     else:
-        ax.legend(handles=legend_handles, loc=legend_loc, frameon=False)
+        ax.legend(handles=handles, ncol=2, loc=legend_loc, frameon=False)
 
 # X axis limits and ticks
 ax.set_xlim(x_min_num, x_max_num)
@@ -1309,7 +1319,7 @@ if show_ax_arrow:
 
 ax.set_xlabel("")
 ax.set_ylabel("")
-ax.set_title("Planning")
+ax.set_title(planning_title)
 
 st.pyplot(fig, use_container_width=True)
 
