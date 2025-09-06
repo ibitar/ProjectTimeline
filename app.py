@@ -10,6 +10,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.transforms as transforms
+import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 from datetime import datetime, date
 from itertools import zip_longest
@@ -470,6 +471,14 @@ with tabs[1]:
         endcap_len = st.slider("Longueur end-caps (en Y)", 0.1, 1.0, 0.35, step=0.05, help="Longueur des traits de fin")
         show_today_line = st.checkbox("Ligne aujourd’hui", value=True, help="Affiche une ligne pour la date actuelle")
 
+    with st.expander("Couleurs des groupes"):
+        for i, g in enumerate(unique_groups):
+            color_key = f"group_color_{g}".replace(" ", "_")
+            picked = st.color_picker(g, st.session_state.group_colors.get(g, "#000000"), key=color_key)
+            st.session_state.group_colors[g] = picked
+
+group_colors = {g: st.session_state.group_colors.get(g, "gray") for g in unique_groups}
+
 with tabs[2]:
     st.subheader("Annotations")
     ann_tabs = st.tabs(["Jalons", "Inputs"])
@@ -860,6 +869,15 @@ df_ms["marker"] = df_ms["marker"].replace("", "v").fillna("v").astype(str)
 df_tasks["marker"] = df_tasks.get("marker", "")
 df_tasks["marker"] = df_tasks["marker"].fillna("").astype(str)
 
+# Unique groups & default colors
+group_palette = plt.get_cmap("tab20").colors
+unique_groups = [g for g in df_tasks["group"].dropna().unique() if g]
+if "group_colors" not in st.session_state:
+    st.session_state.group_colors = {}
+for i, g in enumerate(unique_groups):
+    default = mcolors.to_hex(group_palette[i % len(group_palette)])
+    st.session_state.group_colors.setdefault(g, default)
+
 if not df_inputs.empty:
     df_inputs["date"] = pd.to_datetime(df_inputs["date"]).dt.date
 if not df_holidays.empty:
@@ -958,9 +976,6 @@ if row_bg:
         ax.axhspan(y0, y1, xmin=0.0, xmax=1.0, alpha=row_bg_alpha, zorder=1)
 
 # Palette et couleurs de groupes
-group_palette = plt.get_cmap("tab20").colors
-unique_groups = df_tasks["group"].dropna().unique()
-group_colors = {g: group_palette[i % len(group_palette)] for i, g in enumerate(unique_groups)}
 default_color = "gray"
 legend_groups = []
 legend_other = []
