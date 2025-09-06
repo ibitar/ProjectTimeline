@@ -26,6 +26,15 @@ def weeks_between(d0, d1, inclusive=True):
     d = days_between(d0, d1, inclusive=inclusive)
     return d / 7.0
 
+def business_days_between(d0, d1, inclusive=True):
+    """Return number of working days between two dates, excluding weekends."""
+    d0_np = np.datetime64(d0)
+    d1_np = np.datetime64(d1)
+    bd = np.busday_count(d0_np, d1_np)
+    if inclusive and np.is_busday(d1_np):
+        bd += 1
+    return int(bd)
+
 def to_date(x):
     if pd.isna(x):
         return None
@@ -295,7 +304,8 @@ def _build_df_all_from_editors(df_tasks: pd.DataFrame, df_ms: pd.DataFrame) -> p
     return df_all
 
 # ============================== Sidebar ==============================
-
+# Titre de l'application dans la barre latérale
+st.sidebar.title("Gantt Planner")
 search_term = st.sidebar.text_input("Rechercher une option", help="Filtre les options disponibles")
 st.sidebar.header("⚙️ Options")
 
@@ -419,6 +429,10 @@ with tabs[1]:
                 "upper center",
                 "lower center",
                 "center",
+                "outside right",
+                "outside left",
+                "outside bottom",
+                "outside top",
             ],
             index=0,
             help="Emplacement de la légende du graphique",
@@ -454,6 +468,9 @@ with tabs[2]:
         st.subheader("Jalons")
         st.caption("🔖 Ajoutez des jalons pour marquer des étapes clés.")
         milestones_vlines = st.checkbox("Lignes verticales jalons", value=False, help="Trace des lignes verticales pour chaque jalon")
+        ms_vline_titles = st.checkbox("Titres sur lignes jalons", value=False, help="Affiche le titre du jalon sur sa ligne verticale")
+        ms_vline_title_y = st.slider("Position titre jalon (axes fraction)", 0.0, 1.0, 0.5, step=0.05, help="Position verticale du titre sur la ligne") if ms_vline_titles else 0.5
+        ms_vline_title_alpha = st.slider("Transparence titre jalon", 0.0, 1.0, 0.5, step=0.05, help="Opacité du titre sur la ligne") if ms_vline_titles else 0.5
         ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1, help="Taille des marqueurs de jalons")
         ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005, help="Décalage vertical des jalons")
         anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False, help="Évite le chevauchement des éléments")
@@ -907,8 +924,9 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
     start_num = mdates.date2num(row.start)
     end_num   = mdates.date2num(row.end)
     duration_num = end_num - start_num
-    duration_days = days_between(row.start, row.end, inclusive=inclusive_duration)
-    duration_weeks = duration_days / 7.0
+    duration_days_total = days_between(row.start, row.end, inclusive=inclusive_duration)
+    duration_days = business_days_between(row.start, row.end, inclusive=inclusive_duration)
+    duration_weeks = duration_days_total / 7.0
     task_positions[row.id] = (start_num, end_num, i)
 
     progress = getattr(row, "progress", 0)
@@ -946,13 +964,24 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
         add_y = _px_to_data_y(ax, title_gap_px)
         alt = (i % 2) * _px_to_data_y(ax, 6) if anti_overlap else 0.0
         y_title = i + (row_bg_height / 2.0) + add_y + alt
-        _fit_text_in_span(
+        fs, _ = _fit_text_in_span(
             ax, row.title,
             x_center=start_num + duration_num / 2.0,
             y=y_title, x_left=start_num, x_right=end_num,
             max_font_size=title_max_fs, min_font_size=title_min_fs, padding_px=title_padding_px,
             zorder=6, ha="center", va="center", clip_on=False
         )
+        if fs is None:
+            ax.text(
+                start_num + duration_num / 2.0,
+                y_title,
+                row.title,
+                va="center",
+                ha="center",
+                fontsize=title_min_fs,
+                zorder=6,
+                clip_on=False,
+            )
 
     # duration inside bar (unit-aware)
     if dur_in_bar and duration_num > 0:
@@ -1013,6 +1042,19 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
     # vline
     if milestones_vlines:
         ax.axvline(x=x_ms, linestyle=":", alpha=0.3, zorder=3)
+        if ms_vline_titles:
+            ax.text(
+                x_ms,
+                ms_vline_title_y,
+                row.title,
+                rotation=90,
+                va="center",
+                ha="center",
+                alpha=ms_vline_title_alpha,
+                transform=blended,
+                zorder=3,
+                clip_on=False,
+            )
     # alternating vertical offset (axes fraction)
     extra = (ms_alt_extra if (anti_overlap and k % 2 == 1) else 0.0)
     y_af = ms_offset + extra
@@ -1128,7 +1170,16 @@ if show_inputs and not df_inputs.empty:
             )
 
 if legend_handles:
-    ax.legend(handles=legend_handles, loc=legend_loc, frameon=False)
+    if legend_loc == "outside right":
+        ax.legend(handles=legend_handles, loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
+    elif legend_loc == "outside left":
+        ax.legend(handles=legend_handles, loc="center right", bbox_to_anchor=(-0.02, 0.5), frameon=False)
+    elif legend_loc == "outside bottom":
+        ax.legend(handles=legend_handles, loc="upper center", bbox_to_anchor=(0.5, -0.15), frameon=False)
+    elif legend_loc == "outside top":
+        ax.legend(handles=legend_handles, loc="lower center", bbox_to_anchor=(0.5, 1.15), frameon=False)
+    else:
+        ax.legend(handles=legend_handles, loc=legend_loc, frameon=False)
 
 # X axis limits and ticks
 ax.set_xlim(x_min_num, x_max_num)
