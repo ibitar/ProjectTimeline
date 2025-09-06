@@ -443,6 +443,11 @@ with tabs[1]:
         title_min_fs = st.slider("Taille min titres", 4, 12, 6, help="Taille minimale des titres")
         title_gap_px = st.slider("Décalage vertical titres (px)", 0, 20, 6, help="Décalage vertical des titres")
         title_padding_px = st.slider("Marge interne titres (px)", 0, 20, 6, help="Marge autour du texte du titre")
+        title_align_start = st.checkbox(
+            "Aligner les titres sur le début",
+            value=False,
+            help="Si coché, les titres commencent au début de la barre au lieu d'être centrés",
+        )
 
         dur_in_bar = st.checkbox("Afficher la durée dans la barre", value=True, help="Affiche la durée à l'intérieur de la barre")
         dur_font = st.slider("Taille police durée", 6, 14, 8, help="Taille de police pour la durée")
@@ -1001,20 +1006,26 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
         add_y = _px_to_data_y(ax, title_gap_px)
         alt = (i % 2) * _px_to_data_y(ax, 6) if anti_overlap else 0.0
         y_title = i + (row_bg_height / 2.0) + add_y + alt
+        if title_align_start:
+            x_title = start_num
+            ha_title = "left"
+        else:
+            x_title = start_num + duration_num / 2.0
+            ha_title = "center"
         fs, _ = _fit_text_in_span(
             ax, row.title,
-            x_center=start_num + duration_num / 2.0,
+            x_center=x_title,
             y=y_title, x_left=start_num, x_right=end_num,
             max_font_size=title_max_fs, min_font_size=title_min_fs, padding_px=title_padding_px,
-            zorder=6, ha="center", va="center", clip_on=False
+            zorder=6, ha=ha_title, va="center", clip_on=False
         )
         if fs is None:
             ax.text(
-                start_num + duration_num / 2.0,
+                x_title,
                 y_title,
                 row.title,
                 va="center",
-                ha="center",
+                ha=ha_title,
                 fontsize=title_min_fs,
                 zorder=6,
                 clip_on=False,
