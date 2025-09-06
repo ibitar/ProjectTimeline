@@ -469,8 +469,45 @@ with tabs[2]:
         st.caption("🔖 Ajoutez des jalons pour marquer des étapes clés.")
         milestones_vlines = st.checkbox("Lignes verticales jalons", value=False, help="Trace des lignes verticales pour chaque jalon")
         ms_vline_titles = st.checkbox("Titres sur lignes jalons", value=False, help="Affiche le titre du jalon sur sa ligne verticale")
-        ms_vline_title_y = st.slider("Position titre jalon (axes fraction)", 0.0, 1.0, 0.5, step=0.05, help="Position verticale du titre sur la ligne") if ms_vline_titles else 0.5
-        ms_vline_title_alpha = st.slider("Transparence titre jalon", 0.0, 1.0, 0.5, step=0.05, help="Opacité du titre sur la ligne") if ms_vline_titles else 0.5
+        if ms_vline_titles:
+            ms_vline_title_pos = st.radio(
+                "Placement titre jalon",
+                ["Dans le graphique", "Au-dessus", "En dessous"],
+                help="Position du titre le long de la ligne verticale",
+            )
+            if ms_vline_title_pos == "Dans le graphique":
+                ms_vline_title_y = st.slider(
+                    "Position titre jalon (axes fraction)",
+                    0.0,
+                    1.0,
+                    0.5,
+                    step=0.05,
+                    help="Position verticale du titre sur la ligne",
+                )
+                ms_vline_title_offset = 0.02
+            else:
+                ms_vline_title_y = 0.5
+                ms_vline_title_offset = st.slider(
+                    "Décalage vertical titre jalon",
+                    0.0,
+                    0.2,
+                    0.02,
+                    step=0.01,
+                    help="Décalage hors du graphique",
+                )
+            ms_vline_title_alpha = st.slider(
+                "Transparence titre jalon",
+                0.0,
+                1.0,
+                0.5,
+                step=0.05,
+                help="Opacité du titre sur la ligne",
+            )
+        else:
+            ms_vline_title_pos = "Dans le graphique"
+            ms_vline_title_y = 0.5
+            ms_vline_title_offset = 0.02
+            ms_vline_title_alpha = 0.5
         ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1, help="Taille des marqueurs de jalons")
         ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005, help="Décalage vertical des jalons")
         anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False, help="Évite le chevauchement des éléments")
@@ -1043,9 +1080,15 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
     if milestones_vlines:
         ax.axvline(x=x_ms, linestyle=":", alpha=0.3, zorder=3)
         if ms_vline_titles:
+            if ms_vline_title_pos == "Au-dessus":
+                y_text = 1 + ms_vline_title_offset
+            elif ms_vline_title_pos == "En dessous":
+                y_text = -ms_vline_title_offset
+            else:
+                y_text = ms_vline_title_y
             ax.text(
                 x_ms,
-                ms_vline_title_y,
+                y_text,
                 row.title,
                 rotation=90,
                 va="center",
