@@ -1238,8 +1238,8 @@ if legend_other or legend_groups:
             legend_jalons = ax.legend(
                 handles=legend_other,
                 ncol=1,
-                loc="center left",
-                bbox_to_anchor=(1.02, 0.5),
+                loc="upper left",
+                bbox_to_anchor=(1.02, 1.0),
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
@@ -1247,8 +1247,8 @@ if legend_other or legend_groups:
             legend_activites = ax.legend(
                 handles=legend_groups,
                 ncol=1,
-                loc="center left",
-                bbox_to_anchor=(1.22, 0.5),
+                loc="upper left",
+                bbox_to_anchor=(1.22, 1.0),
                 frameon=False,
             )
     elif legend_loc == "outside left":
@@ -1256,8 +1256,8 @@ if legend_other or legend_groups:
             legend_jalons = ax.legend(
                 handles=legend_other,
                 ncol=1,
-                loc="center right",
-                bbox_to_anchor=(-0.22, 0.5),
+                loc="upper right",
+                bbox_to_anchor=(-0.22, 1.0),
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
@@ -1265,8 +1265,8 @@ if legend_other or legend_groups:
             legend_activites = ax.legend(
                 handles=legend_groups,
                 ncol=1,
-                loc="center right",
-                bbox_to_anchor=(-0.02, 0.5),
+                loc="upper right",
+                bbox_to_anchor=(-0.02, 1.0),
                 frameon=False,
             )
     elif legend_loc == "outside bottom":
@@ -1275,7 +1275,7 @@ if legend_other or legend_groups:
                 handles=legend_other,
                 ncol=1,
                 loc="upper center",
-                bbox_to_anchor=(0.4, -0.15),
+                bbox_to_anchor=(0.4, -0.02),
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
@@ -1284,7 +1284,7 @@ if legend_other or legend_groups:
                 handles=legend_groups,
                 ncol=1,
                 loc="upper center",
-                bbox_to_anchor=(0.6, -0.15),
+                bbox_to_anchor=(0.6, -0.02),
                 frameon=False,
             )
     elif legend_loc == "outside top":
@@ -1293,7 +1293,7 @@ if legend_other or legend_groups:
                 handles=legend_other,
                 ncol=1,
                 loc="lower center",
-                bbox_to_anchor=(0.4, 1.15),
+                bbox_to_anchor=(0.4, 1.02),
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
@@ -1302,16 +1302,17 @@ if legend_other or legend_groups:
                 handles=legend_groups,
                 ncol=1,
                 loc="lower center",
-                bbox_to_anchor=(0.6, 1.15),
+                bbox_to_anchor=(0.6, 1.02),
                 frameon=False,
             )
     else:
+        y_anchor = 1.0 if "upper" in legend_loc else (0.0 if "lower" in legend_loc else 0.5)
         if legend_other:
             legend_jalons = ax.legend(
                 handles=legend_other,
                 ncol=1,
                 loc=legend_loc,
-                bbox_to_anchor=(-0.1, 0),
+                bbox_to_anchor=(-0.1, y_anchor),
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
@@ -1320,7 +1321,7 @@ if legend_other or legend_groups:
                 handles=legend_groups,
                 ncol=1,
                 loc=legend_loc,
-                bbox_to_anchor=(0.1, 0),
+                bbox_to_anchor=(0.1, y_anchor),
                 frameon=False,
             )
 
