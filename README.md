@@ -16,3 +16,5 @@ The sidebar offers extensive customization for dependency arrows:
 - select arrow head style (e.g., `-|>`, `->`, `-[`)
 
 Milestone titles displayed on vertical lines can be placed above or below the chart to keep long labels from overlapping tasks.
+
+Users may also align task titles either centered or starting at the beginning of their bars to keep starts lined up.
