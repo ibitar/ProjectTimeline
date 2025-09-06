@@ -436,7 +436,7 @@ with tabs[1]:
                 "outside bottom",
                 "outside top",
             ],
-            index=0,
+            index=9,
             help="Emplacement de la légende du graphique",
         )
     with st.expander("Titres & Durées"):
