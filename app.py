@@ -1231,28 +1231,99 @@ if show_inputs and not df_inputs.empty:
                 clip_on=False,
             )
 
-handles = []
-# Assure that legend entries are split into two distinct columns:
-# one for milestones/other markers and one for activity groups.
-max_len = max(len(legend_groups), len(legend_other))
-for i in range(max_len):
-    # first column: milestones/other markers
-    o = legend_other[i] if i < len(legend_other) else Line2D([], [], linestyle="None", label="")
-    # second column: activity groups
-    g = legend_groups[i] if i < len(legend_groups) else Line2D([], [], linestyle="None", label="")
-    handles.extend([o, g])
-
-if handles:
+# Create separate legends for milestones/other markers and activity groups
+if legend_other or legend_groups:
     if legend_loc == "outside right":
-        ax.legend(handles=handles, ncol=2, loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
+        if legend_other:
+            legend_jalons = ax.legend(
+                handles=legend_other,
+                ncol=1,
+                loc="upper left",
+                bbox_to_anchor=(1.02, 1.0),
+                frameon=False,
+            )
+            ax.add_artist(legend_jalons)
+        if legend_groups:
+            legend_activites = ax.legend(
+                handles=legend_groups,
+                ncol=1,
+                loc="upper left",
+                bbox_to_anchor=(1.22, 1.0),
+                frameon=False,
+            )
     elif legend_loc == "outside left":
-        ax.legend(handles=handles, ncol=2, loc="center right", bbox_to_anchor=(-0.02, 0.5), frameon=False)
+        if legend_other:
+            legend_jalons = ax.legend(
+                handles=legend_other,
+                ncol=1,
+                loc="upper right",
+                bbox_to_anchor=(-0.22, 1.0),
+                frameon=False,
+            )
+            ax.add_artist(legend_jalons)
+        if legend_groups:
+            legend_activites = ax.legend(
+                handles=legend_groups,
+                ncol=1,
+                loc="upper right",
+                bbox_to_anchor=(-0.02, 1.0),
+                frameon=False,
+            )
     elif legend_loc == "outside bottom":
-        ax.legend(handles=handles, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.15), frameon=False)
+        if legend_other:
+            legend_jalons = ax.legend(
+                handles=legend_other,
+                ncol=1,
+                loc="upper center",
+                bbox_to_anchor=(0.4, -0.02),
+                frameon=False,
+            )
+            ax.add_artist(legend_jalons)
+        if legend_groups:
+            legend_activites = ax.legend(
+                handles=legend_groups,
+                ncol=1,
+                loc="upper center",
+                bbox_to_anchor=(0.6, -0.02),
+                frameon=False,
+            )
     elif legend_loc == "outside top":
-        ax.legend(handles=handles, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 1.15), frameon=False)
+        if legend_other:
+            legend_jalons = ax.legend(
+                handles=legend_other,
+                ncol=1,
+                loc="lower center",
+                bbox_to_anchor=(0.4, 1.02),
+                frameon=False,
+            )
+            ax.add_artist(legend_jalons)
+        if legend_groups:
+            legend_activites = ax.legend(
+                handles=legend_groups,
+                ncol=1,
+                loc="lower center",
+                bbox_to_anchor=(0.6, 1.02),
+                frameon=False,
+            )
     else:
-        ax.legend(handles=handles, ncol=2, loc=legend_loc, frameon=False)
+        y_anchor = 1.0 if "upper" in legend_loc else (0.0 if "lower" in legend_loc else 0.5)
+        if legend_other:
+            legend_jalons = ax.legend(
+                handles=legend_other,
+                ncol=1,
+                loc=legend_loc,
+                bbox_to_anchor=(-0.1, y_anchor),
+                frameon=False,
+            )
+            ax.add_artist(legend_jalons)
+        if legend_groups:
+            legend_activites = ax.legend(
+                handles=legend_groups,
+                ncol=1,
+                loc=legend_loc,
+                bbox_to_anchor=(0.1, y_anchor),
+                frameon=False,
+            )
 
 # X axis limits and ticks
 ax.set_xlim(x_min_num, x_max_num)
