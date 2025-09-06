@@ -1232,11 +1232,15 @@ if show_inputs and not df_inputs.empty:
             )
 
 handles = []
-for g, o in zip_longest(legend_groups, legend_other):
-    if g:
-        handles.append(g)
-    if o:
-        handles.append(o)
+# Assure that legend entries are split into two distinct columns:
+# one for milestones/other markers and one for activity groups.
+max_len = max(len(legend_groups), len(legend_other))
+for i in range(max_len):
+    # first column: milestones/other markers
+    o = legend_other[i] if i < len(legend_other) else Line2D([], [], linestyle="None", label="")
+    # second column: activity groups
+    g = legend_groups[i] if i < len(legend_groups) else Line2D([], [], linestyle="None", label="")
+    handles.extend([o, g])
 
 if handles:
     if legend_loc == "outside right":
