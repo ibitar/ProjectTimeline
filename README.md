@@ -14,3 +14,5 @@ The sidebar offers extensive customization for dependency arrows:
 - choose between curved or orthogonal connectors
 - adjust curvature, color, transparency, line width and head size
 - select arrow head style (e.g., `-|>`, `->`, `-[`)
+
+Milestone titles displayed on vertical lines can be placed above or below the chart to keep long labels from overlapping tasks.
