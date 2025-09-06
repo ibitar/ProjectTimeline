@@ -1093,17 +1093,22 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
         if ms_vline_titles:
             if ms_vline_title_pos == "Au-dessus":
                 y_text = 1 + ms_vline_title_offset
+                va = "bottom"
             elif ms_vline_title_pos == "En dessous":
                 y_text = -ms_vline_title_offset
+                va = "top"
             else:
                 y_text = ms_vline_title_y
+                va = "center"
+
             ax.text(
                 x_ms,
                 y_text,
                 row.title,
                 rotation=90,
-                va="center",
                 ha="center",
+                va=va,
+                rotation_mode="anchor",  # pour ancrer le début du texte
                 alpha=ms_vline_title_alpha,
                 transform=blended,
                 zorder=3,
