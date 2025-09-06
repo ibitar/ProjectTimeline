@@ -1233,76 +1233,101 @@ if show_inputs and not df_inputs.empty:
 
 # Create separate legends for milestones/other markers and activity groups
 if legend_other or legend_groups:
+    legend_spacing = 0.02
     if legend_loc == "outside right":
+        x_anchor = 1.02
         if legend_other:
             legend_jalons = ax.legend(
                 handles=legend_other,
                 ncol=1,
                 loc="upper left",
-                bbox_to_anchor=(1.02, 1.0),
+                bbox_to_anchor=(x_anchor, 1.0),
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
+            fig.canvas.draw()
+            bbox = legend_jalons.get_window_extent(renderer=fig.canvas.get_renderer())
+            width = ax.transAxes.inverted().transform_bbox(bbox).width
+            x_anchor += width + legend_spacing
         if legend_groups:
             legend_activites = ax.legend(
                 handles=legend_groups,
                 ncol=1,
                 loc="upper left",
-                bbox_to_anchor=(1.22, 1.0),
+                bbox_to_anchor=(x_anchor, 1.0),
                 frameon=False,
             )
     elif legend_loc == "outside left":
+        x_anchor = -0.02
         if legend_other:
             legend_jalons = ax.legend(
                 handles=legend_other,
                 ncol=1,
                 loc="upper right",
-                bbox_to_anchor=(-0.22, 1.0),
+                bbox_to_anchor=(x_anchor, 1.0),
                 frameon=False,
             )
+            fig.canvas.draw()
+            bbox = legend_jalons.get_window_extent(renderer=fig.canvas.get_renderer())
+            width = ax.transAxes.inverted().transform_bbox(bbox).width
+            legend_jalons.set_bbox_to_anchor((x_anchor - width - legend_spacing, 1.0))
             ax.add_artist(legend_jalons)
         if legend_groups:
             legend_activites = ax.legend(
                 handles=legend_groups,
                 ncol=1,
                 loc="upper right",
-                bbox_to_anchor=(-0.02, 1.0),
+                bbox_to_anchor=(x_anchor, 1.0),
                 frameon=False,
             )
     elif legend_loc == "outside bottom":
+        y_anchor = -0.02
+        x_anchor = 0.5
         if legend_other:
             legend_jalons = ax.legend(
                 handles=legend_other,
                 ncol=1,
                 loc="upper center",
-                bbox_to_anchor=(0.4, -0.02),
+                bbox_to_anchor=(x_anchor, y_anchor),
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
+            fig.canvas.draw()
+            bbox = legend_jalons.get_window_extent(renderer=fig.canvas.get_renderer())
+            width = ax.transAxes.inverted().transform_bbox(bbox).width
+            legend_jalons.set_bbox_to_anchor((x_anchor - width / 2 - legend_spacing / 2, y_anchor))
+            x_anchor = x_anchor + width / 2 + legend_spacing / 2
         if legend_groups:
             legend_activites = ax.legend(
                 handles=legend_groups,
                 ncol=1,
                 loc="upper center",
-                bbox_to_anchor=(0.6, -0.02),
+                bbox_to_anchor=(x_anchor, y_anchor),
                 frameon=False,
             )
     elif legend_loc == "outside top":
+        y_anchor = 1.02
+        x_anchor = 0.5
         if legend_other:
             legend_jalons = ax.legend(
                 handles=legend_other,
                 ncol=1,
                 loc="lower center",
-                bbox_to_anchor=(0.4, 1.02),
+                bbox_to_anchor=(x_anchor, y_anchor),
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
+            fig.canvas.draw()
+            bbox = legend_jalons.get_window_extent(renderer=fig.canvas.get_renderer())
+            width = ax.transAxes.inverted().transform_bbox(bbox).width
+            legend_jalons.set_bbox_to_anchor((x_anchor - width / 2 - legend_spacing / 2, y_anchor))
+            x_anchor = x_anchor + width / 2 + legend_spacing / 2
         if legend_groups:
             legend_activites = ax.legend(
                 handles=legend_groups,
                 ncol=1,
                 loc="lower center",
-                bbox_to_anchor=(0.6, 1.02),
+                bbox_to_anchor=(x_anchor, y_anchor),
                 frameon=False,
             )
     else:
@@ -1316,6 +1341,10 @@ if legend_other or legend_groups:
                 frameon=False,
             )
             ax.add_artist(legend_jalons)
+            fig.canvas.draw()
+            bbox = legend_jalons.get_window_extent(renderer=fig.canvas.get_renderer())
+            width = ax.transAxes.inverted().transform_bbox(bbox).width
+            legend_jalons.set_bbox_to_anchor((-0.1 - width - legend_spacing, y_anchor))
         if legend_groups:
             legend_activites = ax.legend(
                 handles=legend_groups,
