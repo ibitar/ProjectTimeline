@@ -90,14 +90,24 @@ def demo_dataframe():
     ], columns=["id", "title", "start", "end", "group", "milestone", "progress", "depends_on"])
     return df
 
-def parse_combined_csv(file) -> pd.DataFrame:
-    df = pd.read_csv(file)
+def _read_table(file) -> pd.DataFrame:
+    """Read an uploaded CSV or Excel file."""
+    name = getattr(file, "name", "").lower()
+    if name.endswith((".xlsx", ".xls")):
+        return pd.read_excel(file)
+    return pd.read_csv(file)
+
+
+def parse_combined_file(file) -> pd.DataFrame:
+    df = _read_table(file)
     # normalize columns
     cols = {c.lower().strip(): c for c in df.columns}
     required = ["id","title","start","end"]
     for r in required:
         if r not in cols:
-            raise ValueError("CSV combiné attendu avec colonnes au minimum: id,title,start,end[,group,milestone,progress,depends_on]")
+            raise ValueError(
+                "Fichier combiné attendu avec colonnes au minimum: id,title,start,end[,group,milestone,progress,depends_on]"
+            )
     # harmonize
     df = df.rename(columns={cols.get("id","id"): "id",
                             cols.get("title","title"): "title",
@@ -129,19 +139,21 @@ def parse_combined_csv(file) -> pd.DataFrame:
 
     return df
 
-def parse_activities_csv(file) -> pd.DataFrame:
-    df = pd.read_csv(file)
+def parse_activities_file(file) -> pd.DataFrame:
+    df = _read_table(file)
     df = df.rename(columns={c: c.lower().strip() for c in df.columns})
     needed = {"id","title","start","end"}
     if not needed.issubset(set(df.columns)):
-        raise ValueError("activities.csv doit contenir: id,title,start,end[,group,progress,depends_on]")
+        raise ValueError(
+            "Le fichier activities doit contenir: id,title,start,end[,group,progress,depends_on]"
+        )
     if "progress" not in df:
         df["progress"] = 0
     df["progress"] = pd.to_numeric(df["progress"], errors="coerce").fillna(0)
     return df
 
-def parse_milestones_csv(file) -> pd.DataFrame:
-    df = pd.read_csv(file)
+def parse_milestones_file(file) -> pd.DataFrame:
+    df = _read_table(file)
     df = df.rename(columns={c: c.lower() for c in df.columns})
     # accept either (id,title,date) or (id,title,start,end with same day)
     if {"id", "title", "date"}.issubset(df.columns):
@@ -151,7 +163,7 @@ def parse_milestones_csv(file) -> pd.DataFrame:
         pass
     else:
         raise ValueError(
-            "milestones.csv doit contenir: id,title,date OR id,title,start,end (start=end)."
+            "Le fichier milestones doit contenir: id,title,date OU id,title,start,end (start=end)."
         )
     if "marker" not in df:
         df["marker"] = "v"
@@ -159,18 +171,18 @@ def parse_milestones_csv(file) -> pd.DataFrame:
     df["milestone"] = 1
     return df
 
-def parse_inputs_csv(file) -> pd.DataFrame:
-    df = pd.read_csv(file)
+def parse_inputs_file(file) -> pd.DataFrame:
+    df = _read_table(file)
     # columns: date,label
     if not {"date","label"}.issubset({c.lower() for c in df.columns}):
-        raise ValueError("inputs.csv doit contenir: date,label")
+        raise ValueError("Le fichier inputs doit contenir: date,label")
     df = df.rename(columns={c: c.lower() for c in df.columns})
     return df[["date","label"]]
 
-def parse_holidays_csv(file) -> pd.DataFrame:
-    df = pd.read_csv(file)
+def parse_holidays_file(file) -> pd.DataFrame:
+    df = _read_table(file)
     if "date" not in {c.lower() for c in df.columns}:
-        raise ValueError("jours_feries.csv doit contenir: date")
+        raise ValueError("Le fichier jours_feries doit contenir: date")
     df = df.rename(columns={c: c.lower() for c in df.columns})
     return df[["date"]]
 
@@ -311,10 +323,40 @@ st.sidebar.title("Gantt Planner")
 search_term = st.sidebar.text_input("Rechercher une option", help="Filtre les options disponibles")
 st.sidebar.header("⚙️ Options")
 
+import unicodedata
+
+def _norm(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", s or "") if unicodedata.category(c) != "Mn").lower()
+
+def expander_search(label: str, keywords=None, default=False, **kwargs):
+    keys = [label] + (keywords or [])
+    expanded = default or (search_term and any(_norm(search_term) in _norm(k) for k in keys))
+    return st.expander(label, expanded=expanded, **kwargs)
+
+SEARCH_CATALOG = {
+    "Grille": "Axe X",
+    "Plage temporelle": "Axe X",
+    "Flèche": "Axe X",
+    "Barres": "Activités",
+    "Titres & Durées": "Activités",
+    "Dates & end-caps": "Activités",
+    "Inputs (optionnel) — date, label": "Annotations",
+    "Couleurs des groupes": "Activités",
+}
+
+if search_term:
+    matches = {k: v for k, v in SEARCH_CATALOG.items() if _norm(search_term) in _norm(k)}
+    if matches:
+        st.sidebar.markdown("**Options trouvées :**")
+        for k, v in matches.items():
+            st.sidebar.markdown(f"- {k} *(dans {v})*")
+    else:
+        st.sidebar.markdown("Aucune option correspondante.")
+
 st.sidebar.subheader("Données")
 mode_data = st.sidebar.radio(
     "Source des données",
-    ["CSV combiné", "CSV séparés", "Édition (sans CSV)", "Démo"],
+    ["Fichier combiné", "Fichiers séparés", "Édition (sans fichier)", "Démo"],
     horizontal=True,
     help="Choisir la provenance des données"
 )
@@ -325,37 +367,37 @@ uploaded_miles = None
 uploaded_inputs = None
 uploaded_holidays = None
 
-if mode_data == "CSV combiné":
+if mode_data == "Fichier combiné":
     uploaded_combined = st.sidebar.file_uploader(
-        "Importer le CSV combiné (id,title,start,end[,group,milestone,progress,depends_on])",
-        type=["csv"],
+        "Importer le fichier combiné (CSV/Excel)",
+        type=["csv", "xlsx", "xls"],
         help="Charger un fichier unique contenant toutes les données",
     )
     uploaded_inputs = st.sidebar.file_uploader(
-        "Importer inputs.csv (date,label) — optionnel",
-        type=["csv"],
+        "Importer inputs (CSV/Excel) — optionnel",
+        type=["csv", "xlsx", "xls"],
         help="Ajouter des informations d'inputs",
     )
-elif mode_data == "CSV séparés":
+elif mode_data == "Fichiers séparés":
     uploaded_acts = st.sidebar.file_uploader(
-        "activities.csv (id,title,start,end[,group,progress,depends_on])",
-        type=["csv"],
+        "activities (CSV/Excel)",
+        type=["csv", "xlsx", "xls"],
         help="Importer les activités du projet",
     )
     uploaded_miles = st.sidebar.file_uploader(
-        "milestones.csv (id,title,date) ou (id,title,start,end)",
-        type=["csv"],
+        "milestones (CSV/Excel)",
+        type=["csv", "xlsx", "xls"],
         help="Importer les jalons du projet",
     )
     uploaded_inputs = st.sidebar.file_uploader(
-        "inputs.csv (date,label) — optionnel",
-        type=["csv"],
+        "inputs (CSV/Excel) — optionnel",
+        type=["csv", "xlsx", "xls"],
         help="Ajouter des inputs au planning",
     )
 
 uploaded_holidays = st.sidebar.file_uploader(
-    "jours_feries.csv (date) — optionnel",
-    type=["csv"],
+    "jours_feries (CSV/Excel) — optionnel",
+    type=["csv", "xlsx", "xls"],
     help="Spécifier les jours fériés",
 )
 
@@ -383,7 +425,7 @@ tabs = st.sidebar.tabs([
 
 with tabs[0]:
     st.subheader("Axe X")
-    with st.expander("Grille"):
+    with expander_search("Grille", ["Rotation des dates", "Quadrillage", "week-ends", "Grille sur", "graduations", "Format des dates"]):
         rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5, help="Ajuste l'angle des dates sur l'axe X")
         show_grid = st.checkbox("Quadrillage pointillé", value=True, help="Affiche un quadrillage en pointillés")
         highlight_weekends = st.checkbox("Surligner week-ends", value=False, help="Met en évidence les week-ends")
@@ -403,13 +445,13 @@ with tabs[0]:
             index=1,
             help="Ajoute une échelle secondaire en haut",
         )
-    with st.expander("Plage temporelle"):
+    with expander_search("Plage temporelle", ["X min", "X max", "Marge aux extrémités"]):
         x_min_str = st.text_input("X min (AAAA-MM-JJ) — optionnel", "", help="Date minimale affichée sur l'axe X")
         x_max_str = st.text_input("X max (AAAA-MM-JJ) — optionnel", "", help="Date maximale affichée sur l'axe X")
         x_margin_ratio = (
             st.slider("Marge aux extrémités (%)", 0, 20, 5, step=1, help="Marge ajoutée aux extrémités") / 100.0
         )
-    with st.expander("Flèche"):
+    with expander_search("Flèche", ["Couleur flèche", "Épaisseur flèche", "Taille pointe"]):
         show_ax_arrow = st.checkbox("Afficher la flèche", value=True, help="Affiche une flèche indiquant le sens du temps")
         ax_arrow_color = st.color_picker("Couleur flèche", "#FF0000", help="Couleur de la flèche de l'axe X")
         ax_arrow_lw = st.slider("Épaisseur flèche axe X", 2.0, 16.0, 8.0, step=0.5, help="Épaisseur de la flèche")
@@ -417,7 +459,7 @@ with tabs[0]:
 
 with tabs[1]:
     st.subheader("Activités")
-    with st.expander("Barres"):
+    with expander_search("Barres", ["Bandes", "Hauteur", "légende"]):
         row_bg = st.checkbox("Bandes horizontales de fond", value=False, help="Ajoute des bandes colorées derrière les activités")
         row_bg_alpha = st.slider("Transparence bandes", 0.0, 0.5, 0.10, step=0.01, help="Définit la transparence des bandes")
         row_bg_height = st.slider("Épaisseur bande (0–1)", 0.1, 1.0, 0.6, step=0.05, help="Hauteur des bandes de fond")
@@ -442,7 +484,7 @@ with tabs[1]:
             index=9,
             help="Emplacement de la légende du graphique",
         )
-    with st.expander("Titres & Durées"):
+    with expander_search("Titres & Durées", ["Titre", "Durée", "progression"]):
         titles_above = st.checkbox("Titres au-dessus des barres", value=True, help="Place les titres au-dessus des barres")
         title_max_fs = st.slider("Taille max titres", 6, 18, 10, help="Taille maximale des titres")
         title_min_fs = st.slider("Taille min titres", 4, 12, 6, help="Taille minimale des titres")
@@ -478,7 +520,7 @@ with tabs[1]:
                 "{w:.1f} sem",
                 help="Format pour la durée en semaines",
             )
-    with st.expander("Dates & end-caps"):
+    with expander_search("Dates & end-caps", ["dates", "end-caps"]):
         show_start_end = st.checkbox("Étiquettes date début/fin", value=True, help="Affiche les dates de début et fin des tâches")
         date_label_offset = st.number_input(
             "Décalage étiquettes (jours)",
@@ -640,12 +682,12 @@ try:
     if mode_data == "Démo":
         df_all = demo_dataframe()
         df_inputs = pd.DataFrame({"date": ["2025-09-10", "2025-10-05"], "label": ["Données A1 - EDV", "Données A2 - EDV"]})
-    elif mode_data == "CSV combiné":
+    elif mode_data == "Fichier combiné":
         if uploaded_combined is None:
-            st.info("➡️ Importez un CSV combiné ou passez en mode Démo.")
+            st.info("➡️ Importez un fichier combiné ou passez en mode Démo.")
             st.stop()
-        df_all = parse_combined_csv(uploaded_combined)
-        df_inputs = parse_inputs_csv(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
+        df_all = parse_combined_file(uploaded_combined)
+        df_inputs = parse_inputs_file(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
 
         edit_csv = st.sidebar.checkbox(
             "Éditer les données importées",
@@ -692,7 +734,7 @@ try:
                 key="editor_ms_uploaded",
             )
 
-            with st.expander("Inputs (optionnel) — date, label", expanded=False):
+            with expander_search("Inputs (optionnel) — date, label", ["inputs"], default=False):
                 editor_inputs = st.data_editor(
                     st.session_state.editor_inputs,
                     num_rows="dynamic",
@@ -742,9 +784,9 @@ try:
                 else pd.DataFrame(columns=["date", "label"])
             )
         
-    elif mode_data == "Édition (sans CSV)":
+    elif mode_data == "Édition (sans fichier)":
         _init_editor_state()
-        st.subheader("✍️ Édition des données (sans CSV)")
+        st.subheader("✍️ Édition des données (sans fichier)")
 
         st.markdown("**Activités** (id, title, start, end, group, progress, depends_on)")
         editor_tasks = st.data_editor(
@@ -777,7 +819,7 @@ try:
             key="editor_ms_widget",
         )
 
-        with st.expander("Inputs (optionnel) — date, label", expanded=False):
+        with expander_search("Inputs (optionnel) — date, label", ["inputs"], default=False):
             editor_inputs = st.data_editor(
                 st.session_state.editor_inputs,
                 num_rows="dynamic",
@@ -821,12 +863,12 @@ try:
         df_all = _build_df_all_from_editors(st.session_state.editor_tasks, st.session_state.editor_ms)
         df_inputs = st.session_state.editor_inputs if not st.session_state.editor_inputs.empty else pd.DataFrame(columns=["date","label"])
             
-    else:  # CSV séparés
+    else:  # Fichiers séparés
         if uploaded_acts is None or uploaded_miles is None:
-            st.info("➡️ Importez activities.csv et milestones.csv, ou passez en mode Démo.")
+            st.info("➡️ Importez les fichiers activities et milestones, ou passez en mode Démo.")
             st.stop()
-        df_act = parse_activities_csv(uploaded_acts)
-        df_ms  = parse_milestones_csv(uploaded_miles)
+        df_act = parse_activities_file(uploaded_acts)
+        df_ms  = parse_milestones_file(uploaded_miles)
         # Normalize
         df_act = df_act.rename(columns={c: c.lower() for c in df_act.columns})
         df_ms  = df_ms.rename(columns={c: c.lower() for c in df_ms.columns})
@@ -847,8 +889,8 @@ try:
                     ["id","title","start","end","group","milestone","progress","depends_on","marker"]
                 ],
         ], ignore_index=True)
-        df_inputs = parse_inputs_csv(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
-    df_holidays = parse_holidays_csv(uploaded_holidays) if uploaded_holidays else pd.DataFrame(columns=["date"])
+        df_inputs = parse_inputs_file(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
+    df_holidays = parse_holidays_file(uploaded_holidays) if uploaded_holidays else pd.DataFrame(columns=["date"])
 except Exception as e:
     st.error(f"Erreur lors du chargement des données : {e}")
     st.stop()
@@ -891,7 +933,7 @@ for i, g in enumerate(unique_groups):
     st.session_state.group_colors.setdefault(g, default)
 
 with tabs[1]:
-    with st.expander("Couleurs des groupes"):
+    with expander_search("Couleurs des groupes", ["couleur", "groupe"]):
         for i, g in enumerate(unique_groups):
             color_key = f"group_color_{g}".replace(" ", "_")
             picked = st.color_picker(g, st.session_state.group_colors.get(g, "#000000"), key=color_key)
