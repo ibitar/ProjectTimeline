@@ -18,3 +18,5 @@ The sidebar offers extensive customization for dependency arrows:
 Milestone titles displayed on vertical lines can be placed above or below the chart to keep long labels from overlapping tasks.
 
 Users may also align task titles either centered or starting at the beginning of their bars to keep starts lined up.
+
+Date format fields in the sidebar now offer a select box of common display options with an extra *Personnalisé…* entry for custom `strftime` strings.

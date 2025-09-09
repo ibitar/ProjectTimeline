@@ -438,7 +438,26 @@ with tabs[0]:
             step=1,
             help="Intervalle entre les graduations principales",
         )
-        date_fmt = st.text_input("Format des dates (strftime)", "%d %b %Y", help="Format d'affichage des dates")
+        _date_fmt_options = {
+            "31 Dec 2025": "%d %b %Y",
+            "31/12/2025": "%d/%m/%Y",
+            "Dec 31, 2025": "%b %d, %Y",
+        }
+        _date_fmt_label = st.selectbox(
+            "Format des dates",
+            list(_date_fmt_options.keys()) + ["Personnalisé…"],
+            index=0,
+            help="Format d'affichage des dates",
+        )
+        date_fmt = (
+            st.text_input(
+                "Format des dates (strftime)",
+                "%d %b %Y",
+                help="Format d'affichage des dates",
+            )
+            if _date_fmt_label == "Personnalisé…"
+            else _date_fmt_options[_date_fmt_label]
+        )
         top_axis = st.selectbox(
             "Graduations secondaires (haut)",
             ["Aucune", "Mois", "Numéros de semaine"],
@@ -633,9 +652,29 @@ with tabs[2]:
         )
         input_arrow_len = st.slider("Longueur flèche input (Y)", 0.2, 2.0, 0.8, step=0.1, help="Longueur des flèches des inputs")
         show_input_dates = st.checkbox("Afficher date input", value=False, help="Affiche la date près de l'input")
-        input_date_fmt = (
-            st.text_input("Format date input", "%d/%m", help="Format d'affichage de la date") if show_input_dates else "%d/%m"
-        )
+        _input_fmt_options = {
+            "31/12": "%d/%m",
+            "12/31": "%m/%d",
+            "Dec 31": "%b %d",
+        }
+        if show_input_dates:
+            _input_fmt_label = st.selectbox(
+                "Format date input",
+                list(_input_fmt_options.keys()) + ["Personnalisé…"],
+                index=0,
+                help="Format d'affichage de la date",
+            )
+            input_date_fmt = (
+                st.text_input(
+                    "Format date input",
+                    "%d/%m",
+                    help="Format d'affichage de la date",
+                )
+                if _input_fmt_label == "Personnalisé…"
+                else _input_fmt_options[_input_fmt_label]
+            )
+        else:
+            input_date_fmt = "%d/%m"
         input_date_offset = (
             st.slider("Décalage vertical date input (Y)", 0.0, 1.0, 0.15, step=0.05, help="Décalage vertical de la date")
             if show_input_dates
