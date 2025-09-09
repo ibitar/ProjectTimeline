@@ -446,8 +446,18 @@ with tabs[0]:
             help="Ajoute une échelle secondaire en haut",
         )
     with expander_search("Plage temporelle", ["X min", "X max", "Marge aux extrémités"]):
-        x_min_str = st.text_input("X min (AAAA-MM-JJ) — optionnel", "", help="Date minimale affichée sur l'axe X")
-        x_max_str = st.text_input("X max (AAAA-MM-JJ) — optionnel", "", help="Date maximale affichée sur l'axe X")
+        x_min_val = st.date_input(
+            "X min — optionnel",
+            value=None,
+            format="YYYY-MM-DD",
+            help="Date minimale affichée sur l'axe X",
+        )
+        x_max_val = st.date_input(
+            "X max — optionnel",
+            value=None,
+            format="YYYY-MM-DD",
+            help="Date maximale affichée sur l'axe X",
+        )
         x_margin_ratio = (
             st.slider("Marge aux extrémités (%)", 0, 20, 5, step=1, help="Marge ajoutée aux extrémités") / 100.0
         )
@@ -990,14 +1000,14 @@ if data_min is None or data_max is None:
     data_max = today
 
 # overrides utilisateur
-def _parse_date_or(default, s):
+def _parse_date_or(default, value):
     try:
-        return pd.to_datetime(s).date() if s else default
+        return pd.to_datetime(value if value else default)
     except Exception:
-        return default
+        return pd.to_datetime(default)
 
-x_min_user = _parse_date_or(data_min, x_min_str)
-x_max_user = _parse_date_or(data_max, x_max_str)
+x_min_user = _parse_date_or(data_min, x_min_val)
+x_max_user = _parse_date_or(data_max, x_max_val)
 
 # corriger inversion éventuelle
 if x_min_user > x_max_user:
