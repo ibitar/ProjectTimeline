@@ -330,7 +330,7 @@ def _norm(s: str) -> str:
 
 def expander_search(label: str, keywords=None, default=False, **kwargs):
     keys = [label] + (keywords or [])
-    expanded = default or (search_term and any(_norm(search_term) in _norm(k) for k in keys))
+    expanded = default or (bool(search_term) and any(_norm(search_term) in _norm(k) for k in keys))
     return st.expander(label, expanded=expanded, **kwargs)
 
 SEARCH_CATALOG = {
