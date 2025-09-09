@@ -361,7 +361,7 @@ uploaded_holidays = st.sidebar.file_uploader(
 
 st.sidebar.markdown("---")
 planning_title = st.sidebar.text_input("Titre du planning", "Planning")
-planning_title_size = st.sidebar.slider("Taille du titre", 8, 32, 16)
+planning_title_size = st.sidebar.slider("Taille du titre", 8, 32, 32)
 planning_title_color = st.sidebar.color_picker("Couleur du titre", "#000000")
 unit = st.sidebar.selectbox(
     "Unité de temps",
@@ -385,14 +385,14 @@ with tabs[0]:
     st.subheader("Axe X")
     with st.expander("Grille"):
         rot = st.slider("Rotation des dates (X)", 0, 90, 30, step=5, help="Ajuste l'angle des dates sur l'axe X")
-        show_grid = st.checkbox("Quadrillage pointillé", value=False, help="Affiche un quadrillage en pointillés")
+        show_grid = st.checkbox("Quadrillage pointillé", value=True, help="Affiche un quadrillage en pointillés")
         highlight_weekends = st.checkbox("Surligner week-ends", value=False, help="Met en évidence les week-ends")
         grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0, help="Choix de l'axe pour la grille")
         x_tick_step = st.number_input(
             "Pas des graduations majeures (jours/semaines)",
             min_value=1,
             max_value=30,
-            value=1,
+            value=2,
             step=1,
             help="Intervalle entre les graduations principales",
         )
@@ -400,7 +400,7 @@ with tabs[0]:
         top_axis = st.selectbox(
             "Graduations secondaires (haut)",
             ["Aucune", "Mois", "Numéros de semaine"],
-            index=0,
+            index=1,
             help="Ajoute une échelle secondaire en haut",
         )
     with st.expander("Plage temporelle"):
@@ -454,10 +454,30 @@ with tabs[1]:
             help="Si coché, les titres commencent au début de la barre au lieu d'être centrés",
         )
 
-        dur_in_bar = st.checkbox("Afficher la durée dans la barre", value=True, help="Affiche la durée à l'intérieur de la barre")
+        dur_in_bar = st.checkbox(
+            "Afficher la durée dans la barre",
+            value=True,
+            help="Affiche la durée à l'intérieur de la barre",
+        )
         dur_font = st.slider("Taille police durée", 6, 14, 8, help="Taille de police pour la durée")
-        dur_fmt_days = st.text_input("Format durée (jours)", "{d} j", help="Format pour la durée en jours")
-        dur_fmt_weeks = st.text_input("Format durée (semaines)", "{w:.1f} sem", help="Format pour la durée en semaines")
+        dur_unit = st.radio(
+            "Unité de la durée",
+            ["Jours", "Semaines"],
+            index=0 if unit == "Jours" else 1,
+            help="Choisir l'unité d'affichage de la durée",
+        )
+        if dur_unit == "Jours":
+            dur_fmt = st.text_input(
+                "Format durée",
+                "{d} j",
+                help="Format pour la durée en jours",
+            )
+        else:
+            dur_fmt = st.text_input(
+                "Format durée",
+                "{w:.1f} sem",
+                help="Format pour la durée en semaines",
+            )
     with st.expander("Dates & end-caps"):
         show_start_end = st.checkbox("Étiquettes date début/fin", value=True, help="Affiche les dates de début et fin des tâches")
         date_label_offset = st.number_input(
@@ -582,7 +602,7 @@ with tabs[2]:
 
 with tabs[3]:
     st.subheader("Dépendances")
-    show_dependencies = st.checkbox("Afficher dépendances", value=True, help="Affiche les liens entre les tâches")
+    show_dependencies = st.checkbox("Afficher dépendances", value=False, help="Affiche les liens entre les tâches")
     if show_dependencies:
         dep_conn_type = st.selectbox("Type liaison dépendances", ["Courbe", "Orthogonale"], index=0, help="Style de connexion des dépendances")
         if dep_conn_type == "Courbe":
@@ -604,7 +624,7 @@ with tabs[3]:
         dep_arrow_ms = 10
 
 st.sidebar.markdown("---")
-fig_w = st.sidebar.slider("Largeur figure", 6, 20, 12, help="Largeur de la figure Matplotlib")
+fig_w = st.sidebar.slider("Largeur figure", 6, 20, 16, help="Largeur de la figure Matplotlib")
 fig_h = st.sidebar.slider("Hauteur figure", 4, 12, 6, help="Hauteur de la figure Matplotlib")
 st.sidebar.caption("💡 Télécharge le PNG en bas de page.")
 
@@ -1054,8 +1074,20 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
 
     # duration inside bar (unit-aware)
     if dur_in_bar and duration_num > 0:
-        dur_txt = dur_fmt_days.format(d=duration_days) if unit == "Jours" else dur_fmt_weeks.format(w=duration_weeks)
-        ax.text(start_num + duration_num/2.0, i, dur_txt, va="center", ha="center", fontsize=dur_font, zorder=5, clip_on=True)
+        if dur_unit == "Jours":
+            dur_txt = dur_fmt.format(d=duration_days)
+        else:
+            dur_txt = dur_fmt.format(w=duration_weeks)
+        ax.text(
+            start_num + duration_num / 2.0,
+            i,
+            dur_txt,
+            va="center",
+            ha="center",
+            fontsize=dur_font,
+            zorder=5,
+            clip_on=True,
+        )
 
     # start/end labels + endcaps
     if show_start_end:
