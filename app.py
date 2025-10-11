@@ -50,7 +50,8 @@ def to_date(x):
 def _normalize_leave_zones_state():
     """Ensure the leave zones stored in the session are a clean DataFrame."""
 
-    default_row = {"start": date.today(), "end": date.today(), "label": "Congés"}
+    today = pd.Timestamp(date.today())
+    default_row = {"start": today, "end": today, "label": "Congés"}
 
     raw_value = st.session_state.get("leave_zones")
 
@@ -73,9 +74,9 @@ def _normalize_leave_zones_state():
 
     for col in ("start", "end"):
         if col in df:
-            df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
+            df[col] = pd.to_datetime(df[col], errors="coerce").fillna(today)
         else:
-            df[col] = date.today()
+            df[col] = today
 
     if "label" in df:
         def _clean_label(value):
