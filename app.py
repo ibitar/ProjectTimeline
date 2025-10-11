@@ -4,6 +4,7 @@
 
 import io
 import math
+from html import escape
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -28,14 +29,40 @@ def weeks_between(d0, d1, inclusive=True):
     d = days_between(d0, d1, inclusive=inclusive)
     return d / 7.0
 
-def business_days_between(d0, d1, inclusive=True):
-    """Return number of working days between two dates, excluding weekends."""
-    d0_np = np.datetime64(d0)
-    d1_np = np.datetime64(d1)
-    bd = np.busday_count(d0_np, d1_np)
-    if inclusive and np.is_busday(d1_np):
+def business_days_between(d0, d1, inclusive=True, busdaycal=None):
+    """Return number of working days between two dates, excluding weekends/holidays."""
+    d0_np = np.datetime64(d0, "D")
+    d1_np = np.datetime64(d1, "D")
+    if d1_np < d0_np:
+        d0_np, d1_np = d1_np, d0_np
+    bd = np.busday_count(d0_np, d1_np, busdaycal=busdaycal)
+    if inclusive and np.is_busday(d1_np, busdaycal=busdaycal):
         bd += 1
     return int(bd)
+
+
+def leave_zones_to_holidays(zones):
+    """Convert configured leave zones to business-day holidays for NumPy calendars."""
+    if not zones:
+        return None
+
+    holidays = []
+    for zone in zones:
+        start = to_date(zone.get("start")) if isinstance(zone, dict) else None
+        end = to_date(zone.get("end")) if isinstance(zone, dict) else None
+        if start is None or end is None:
+            continue
+        if end < start:
+            start, end = end, start
+        rng = pd.bdate_range(start=start, end=end)
+        if not rng.empty:
+            holidays.append(rng.to_numpy(dtype="datetime64[D]"))
+
+    if not holidays:
+        return None
+
+    all_holidays = np.unique(np.concatenate(holidays))
+    return all_holidays
 
 def to_date(x):
     if pd.isna(x):
@@ -464,6 +491,28 @@ inclusive_duration = st.sidebar.checkbox(
     value=True,
     help="Inclure le jour de fin dans la durée",
 )
+show_assumptions_note = st.sidebar.checkbox(
+    "Afficher une note d'hypothèses",
+    value=False,
+    help="Ajoute sous le planning un rappel des hypothèses retenues (ex. calcul en jours ouvrés).",
+)
+assumptions_note_key = "planning_assumptions_note"
+assumptions_note_default = (
+    "- Les durées affichées excluent les week-ends et les périodes de congés configurées."
+)
+if assumptions_note_key not in st.session_state:
+    st.session_state[assumptions_note_key] = assumptions_note_default
+
+if show_assumptions_note:
+    st.sidebar.text_area(
+        "Hypothèses du planning",
+        key=assumptions_note_key,
+        height=120,
+        help="Rédige les hypothèses à afficher sous le diagramme.",
+    )
+
+assumptions_note_text = st.session_state.get(assumptions_note_key, assumptions_note_default)
+
 tabs = st.sidebar.tabs([
     "Axe X",
     "Activités",
@@ -1171,6 +1220,11 @@ if leave_zone_enabled and not leave_zones_df.empty:
                 label = str(label_raw)
             leave_zones.append({"start": start, "end": end, "label": label})
 
+leave_zone_calendar = None
+leave_zone_holidays = leave_zones_to_holidays(leave_zones)
+if leave_zone_holidays is not None and len(leave_zone_holidays) > 0:
+    leave_zone_calendar = np.busdaycalendar(holidays=leave_zone_holidays)
+
 # ============================== X range (robuste) ==============================
 
 def _first_date_or_none(series):
@@ -1284,9 +1338,13 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
     start_num = mdates.date2num(row.start)
     end_num   = mdates.date2num(row.end)
     duration_num = end_num - start_num
-    duration_days_total = days_between(row.start, row.end, inclusive=inclusive_duration)
-    duration_days = business_days_between(row.start, row.end, inclusive=inclusive_duration)
-    duration_weeks = duration_days_total / 7.0
+    duration_days = business_days_between(
+        row.start,
+        row.end,
+        inclusive=inclusive_duration,
+        busdaycal=leave_zone_calendar,
+    )
+    duration_weeks = duration_days / 5.0 if duration_days else 0.0
     task_positions[row.id] = (start_num, end_num, i)
 
     progress = getattr(row, "progress", 0)
@@ -1800,6 +1858,22 @@ ax.set_ylabel("")
 ax.set_title(planning_title, fontsize=planning_title_size, color=planning_title_color)
 
 st.pyplot(fig, use_container_width=True)
+
+if show_assumptions_note:
+    note = assumptions_note_text.strip()
+    if note:
+        note_lines = [escape(line) for line in note.splitlines() if line.strip()]
+        if note_lines:
+            note_html = "<br>".join(note_lines)
+            st.markdown(
+                (
+                    "<div style='font-size:0.85rem; color:#444; margin-top:0.5rem;'>"
+                    "<strong>Hypothèses du planning :</strong><br>"
+                    f"{note_html}"
+                    "</div>"
+                ),
+                unsafe_allow_html=True,
+            )
 
 # ============================== Download PNG ==============================
 
