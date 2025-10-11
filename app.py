@@ -304,18 +304,18 @@ def parse_holidays_file(file) -> pd.DataFrame:
     df = df.rename(columns={c: c.lower() for c in df.columns})
     return df[["date"]]
 
-import datetime
+import datetime as dt
 
 def _init_editor_state():
     if "editor_tasks" not in st.session_state:
         st.session_state.editor_tasks = pd.DataFrame([
             {"id": "T1", "title": "Cadrage",
-             "start": datetime.date(2025, 9, 1),
-             "end": datetime.date(2025, 9, 5),
+             "start": dt.date(2025, 9, 1),
+             "end": dt.date(2025, 9, 5),
              "group": "Pilotage", "progress": 0, "depends_on": ""},
             {"id": "T2", "title": "Spécifications",
-             "start": datetime.date(2025, 9, 8),
-             "end": datetime.date(2025, 9, 19),
+             "start": dt.date(2025, 9, 8),
+             "end": dt.date(2025, 9, 19),
              "group": "Conception", "progress": 0, "depends_on": "T1"},
         ], columns=["id", "title", "start", "end", "group", "progress", "depends_on"])
 
@@ -324,14 +324,14 @@ def _init_editor_state():
             {
                 "id": "M1",
                 "title": "Specs validées",
-                "date": datetime.date(2025, 9, 22),
+                "date": dt.date(2025, 9, 22),
                 "marker": "v",
             },
         ], columns=["id", "title", "date", "marker"])
 
     if "editor_inputs" not in st.session_state:
         st.session_state.editor_inputs = pd.DataFrame([
-            {"date": datetime.date(2025, 9, 10), "label": "Input A"},
+            {"date": dt.date(2025, 9, 10), "label": "Input A"},
         ], columns=["date", "label"])
 
 def _init_editor_state_from_df(df_all: pd.DataFrame, df_inputs: pd.DataFrame, file_id: str = ""):
