@@ -12,7 +12,7 @@ import matplotlib.dates as mdates
 import matplotlib.transforms as transforms
 import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from itertools import zip_longest
 
 st.set_page_config(page_title="Gantt Planner", layout="wide")
@@ -341,6 +341,7 @@ SEARCH_CATALOG = {
     "Titres & Durées": "Activités",
     "Dates & end-caps": "Activités",
     "Inputs (optionnel) — date, label": "Annotations",
+    "Zone hachurée": "Annotations",
     "Couleurs des groupes": "Activités",
 }
 
@@ -564,51 +565,87 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Annotations")
-    ann_tabs = st.tabs(["Jalons", "Inputs"])
+    ann_tabs = st.tabs(["Jalons", "Inputs", "Zones hachurées"])
     with ann_tabs[0]:
         st.subheader("Jalons")
         st.caption("🔖 Ajoutez des jalons pour marquer des étapes clés.")
         milestones_vlines = st.checkbox("Lignes verticales jalons", value=False, help="Trace des lignes verticales pour chaque jalon")
-        ms_vline_titles = st.checkbox("Titres sur lignes jalons", value=False, help="Affiche le titre du jalon sur sa ligne verticale")
+        ms_vline_titles = st.checkbox(
+            "Titres sur lignes jalons",
+            value=False,
+            help="Affiche le titre du jalon (sur la ligne verticale ou directement sur l’axe s’il n’y a pas de ligne)",
+        )
+
+        ms_title_mode = "vline"
+        ms_vline_title_pos = "Dans le graphique"
+        ms_vline_title_y = 0.5
+        ms_vline_title_offset = 0.02
+        ms_inline_title_dx = 1.0
+        ms_inline_title_dy = 0.0
+        ms_vline_title_alpha = 0.5
+
         if ms_vline_titles:
-            ms_vline_title_pos = st.radio(
-                "Placement titre jalon",
-                ["Dans le graphique", "Au-dessus", "En dessous"],
-                help="Position du titre le long de la ligne verticale",
-            )
-            if ms_vline_title_pos == "Dans le graphique":
-                ms_vline_title_y = st.slider(
-                    "Position titre jalon (axes fraction)",
+            if milestones_vlines:
+                ms_title_mode = "vline"
+                ms_vline_title_pos = st.radio(
+                    "Placement titre jalon",
+                    ["Dans le graphique", "Au-dessus", "En dessous"],
+                    help="Position du titre le long de la ligne verticale",
+                )
+                if ms_vline_title_pos == "Dans le graphique":
+                    ms_vline_title_y = st.slider(
+                        "Position titre jalon (axes fraction)",
+                        0.0,
+                        1.0,
+                        0.5,
+                        step=0.05,
+                        help="Position verticale du titre sur la ligne",
+                    )
+                    ms_vline_title_offset = 0.02
+                else:
+                    ms_vline_title_y = 0.5
+                    ms_vline_title_offset = st.slider(
+                        "Décalage vertical titre jalon",
+                        0.0,
+                        0.2,
+                        0.02,
+                        step=0.01,
+                        help="Décalage hors du graphique",
+                    )
+                ms_vline_title_alpha = st.slider(
+                    "Transparence titre jalon",
                     0.0,
                     1.0,
                     0.5,
                     step=0.05,
-                    help="Position verticale du titre sur la ligne",
+                    help="Opacité du titre sur la ligne",
                 )
-                ms_vline_title_offset = 0.02
             else:
-                ms_vline_title_y = 0.5
-                ms_vline_title_offset = st.slider(
-                    "Décalage vertical titre jalon",
+                ms_title_mode = "inline"
+                ms_inline_title_dx = st.slider(
+                    "Décalage horizontal titre jalon (jours)",
                     0.0,
-                    0.2,
-                    0.02,
-                    step=0.01,
-                    help="Décalage hors du graphique",
+                    10.0,
+                    1.5,
+                    step=0.1,
+                    help="Décalage du titre vers la droite après la date du jalon",
                 )
-            ms_vline_title_alpha = st.slider(
-                "Transparence titre jalon",
-                0.0,
-                1.0,
-                0.5,
-                step=0.05,
-                help="Opacité du titre sur la ligne",
-            )
-        else:
-            ms_vline_title_pos = "Dans le graphique"
-            ms_vline_title_y = 0.5
-            ms_vline_title_offset = 0.02
-            ms_vline_title_alpha = 0.5
+                ms_inline_title_dy = st.slider(
+                    "Décalage vertical titre jalon (axes fraction)",
+                    -0.2,
+                    0.2,
+                    0.0,
+                    step=0.01,
+                    help="Ajuste la position verticale du titre par rapport au jalon",
+                )
+                ms_vline_title_alpha = st.slider(
+                    "Transparence titre jalon",
+                    0.0,
+                    1.0,
+                    0.5,
+                    step=0.05,
+                    help="Opacité du titre du jalon",
+                )
         ms_markersize = st.slider("Taille marqueurs jalons", 8, 36, 16, step=1, help="Taille des marqueurs de jalons")
         ms_offset = st.slider("Offset vertical jalons (axes fraction)", 0.0, 0.1, 0.04, step=0.005, help="Décalage vertical des jalons")
         anti_overlap = st.checkbox("Anti-chevauchement (titres/jalons/inputs)", value=False, help="Évite le chevauchement des éléments")
@@ -689,6 +726,64 @@ with tabs[2]:
             st.slider("Décalage horizontal date/titre (jours)", 0.0, 5.0, 0.5, step=0.1, help="Décalage horizontal entre date et titre")
             if input_title_date_split
             else 0.5
+        )
+
+    with ann_tabs[2]:
+        st.subheader("Zones hachurées")
+        st.caption("🏖️ Mettez en évidence des périodes (congés, indisponibilités) avec une zone hachurée sur toute la hauteur du planning.")
+        leave_zone_enabled = st.checkbox(
+            "Afficher une zone hachurée",
+            value=False,
+            help="Ajoute une zone verticale couvrant toute la hauteur du graphique entre deux dates.",
+        )
+        leave_zone_range = st.date_input(
+            "Plage de dates",
+            value=(date.today(), date.today()),
+            help="Choisir les dates de début et de fin de la zone (incluses).",
+        )
+        if not isinstance(leave_zone_range, (list, tuple)) or len(leave_zone_range) != 2:
+            leave_zone_range = (leave_zone_range, leave_zone_range)
+        leave_zone_color = st.color_picker(
+            "Couleur de la zone",
+            "#B0B0B0",
+            help="Définit la couleur de remplissage de la zone.",
+        )
+        leave_zone_edge_color = st.color_picker(
+            "Couleur du bord",
+            "#707070",
+            help="Couleur du contour de la zone hachurée.",
+        )
+        leave_zone_alpha = st.slider(
+            "Transparence",
+            0.0,
+            1.0,
+            0.25,
+            step=0.05,
+            help="Opacité de la zone (0 = transparent, 1 = opaque).",
+        )
+        leave_zone_hatch = st.selectbox(
+            "Motif de hachures",
+            ["//", "\\\\", "xx", "..", "++", ""],
+            index=0,
+            help="Choisir le motif de hachures.",
+        )
+        leave_zone_label = st.text_input(
+            "Texte sur la zone",
+            "Congés",
+            help="Texte optionnel affiché au centre de la zone.",
+        )
+        leave_zone_label_color = st.color_picker(
+            "Couleur du texte",
+            "#000000",
+            help="Couleur du texte affiché sur la zone.",
+        )
+        leave_zone_label_y = st.slider(
+            "Position verticale du texte",
+            0.0,
+            1.0,
+            0.9,
+            step=0.05,
+            help="Position verticale du texte (en fraction de l'axe Y).",
         )
 
 with tabs[3]:
@@ -995,6 +1090,19 @@ if not df_inputs.empty:
 if not df_holidays.empty:
     df_holidays["date"] = pd.to_datetime(df_holidays["date"]).dt.date
 
+if leave_zone_enabled:
+    try:
+        leave_zone_start = pd.to_datetime(leave_zone_range[0]).date() if leave_zone_range[0] else None
+        leave_zone_end = pd.to_datetime(leave_zone_range[1]).date() if leave_zone_range[1] else None
+    except Exception:
+        leave_zone_start = None
+        leave_zone_end = None
+    if leave_zone_start and leave_zone_end and leave_zone_start > leave_zone_end:
+        leave_zone_start, leave_zone_end = leave_zone_end, leave_zone_start
+else:
+    leave_zone_start = None
+    leave_zone_end = None
+
 # ============================== X range (robuste) ==============================
 
 def _first_date_or_none(series):
@@ -1031,6 +1139,11 @@ if 'df_inputs' in locals() and not df_inputs.empty:
         data_min = in_min if (data_min is None or in_min < data_min) else data_min
     if in_max:
         data_max = in_max if (data_max is None or in_max > data_max) else data_max
+
+if leave_zone_start:
+    data_min = leave_zone_start if (data_min is None or leave_zone_start < data_min) else data_min
+if leave_zone_end:
+    data_max = leave_zone_end if (data_max is None or leave_zone_end > data_max) else data_max
 
 # fallback si toujours None → fenêtre centrée sur aujourd’hui
 if data_min is None or data_max is None:
@@ -1231,10 +1344,15 @@ blended = transforms.blended_transform_factory(ax.transData, ax.transAxes)
 
 for k, row in enumerate(df_ms.itertuples(index=False)):
     x_ms = mdates.date2num(row.start)
+    # alternating vertical offset (axes fraction)
+    extra = (ms_alt_extra if (anti_overlap and k % 2 == 1) else 0.0)
+    y_af = ms_offset + extra
+
     # vline
     if milestones_vlines:
         ax.axvline(x=x_ms, linestyle=":", alpha=0.3, zorder=3)
-        if ms_vline_titles:
+    if ms_vline_titles:
+        if ms_title_mode == "vline":
             if ms_vline_title_pos == "Au-dessus":
                 y_text = 1 + ms_vline_title_offset
                 va = "bottom"
@@ -1258,9 +1376,18 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
                 zorder=3,
                 clip_on=False,
             )
-    # alternating vertical offset (axes fraction)
-    extra = (ms_alt_extra if (anti_overlap and k % 2 == 1) else 0.0)
-    y_af = ms_offset + extra
+        else:
+            ax.text(
+                x_ms + ms_inline_title_dx,
+                y_af + ms_inline_title_dy,
+                row.title,
+                ha="left",
+                va="center",
+                alpha=ms_vline_title_alpha,
+                transform=blended,
+                zorder=7,
+                clip_on=False,
+            )
     color = palette[k % len(palette)]
     marker = getattr(row, "marker", "v")
     ax.plot(
@@ -1503,6 +1630,35 @@ if highlight_weekends or not df_holidays.empty:
         day = mdates.num2date(day_num).date()
         if (highlight_weekends and day.weekday() in {5, 6}) or (day in holidays):
             ax.axvspan(day_num, day_num + 1, color='0.9', zorder=1)
+if leave_zone_start and leave_zone_end:
+    zone_start_num = mdates.date2num(leave_zone_start)
+    zone_end_num = mdates.date2num(leave_zone_end + timedelta(days=1))
+    if zone_start_num > zone_end_num:
+        zone_start_num, zone_end_num = zone_end_num, zone_start_num
+    zone_patch = ax.axvspan(
+        zone_start_num,
+        zone_end_num,
+        facecolor=leave_zone_color,
+        edgecolor=leave_zone_edge_color,
+        alpha=leave_zone_alpha,
+        hatch=leave_zone_hatch,
+        linewidth=1.0,
+        zorder=1.4,
+    )
+    if leave_zone_label:
+        blended_zone = transforms.blended_transform_factory(ax.transData, ax.transAxes)
+        ax.text(
+            zone_start_num + (zone_end_num - zone_start_num) / 2.0,
+            leave_zone_label_y,
+            leave_zone_label,
+            ha="center",
+            va="center",
+            color=leave_zone_label_color,
+            fontsize=12,
+            transform=blended_zone,
+            zorder=zone_patch.get_zorder() + 0.1,
+            clip_on=False,
+        )
 if show_today_line:
     today_num = mdates.date2num(pd.Timestamp.today().date())
     ax.axvline(today_num, color='red', linestyle='--', alpha=0.5, zorder=1)
