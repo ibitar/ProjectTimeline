@@ -786,6 +786,9 @@ with tabs[2]:
 
         _normalize_leave_zones_state()
         if leave_zone_enabled:
+            st.caption(
+                "Ajoutez plusieurs plages de dates à hachurer. Par défaut, chaque zone s'intitule 'Congés'."
+            )
             leave_zones_df = st.data_editor(
                 st.session_state.leave_zones,
                 num_rows="dynamic",
@@ -797,7 +800,6 @@ with tabs[2]:
                 },
                 hide_index=True,
                 key="leave_zones_editor",
-                help="Ajoutez plusieurs plages de dates à hachurer. Par défaut, chaque zone s'intitule 'Congés'.",
             )
             if leave_zones_df is not None:
                 st.session_state.leave_zones = leave_zones_df
