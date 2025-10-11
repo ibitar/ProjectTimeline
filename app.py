@@ -31,8 +31,18 @@ def weeks_between(d0, d1, inclusive=True):
 
 def business_days_between(d0, d1, inclusive=True, busdaycal=None):
     """Return number of working days between two dates, excluding weekends/holidays."""
-    d0_np = np.datetime64(d0, "D")
-    d1_np = np.datetime64(d1, "D")
+
+    start = to_date(d0)
+    end = to_date(d1)
+
+    if start is None or end is None:
+        return 0
+
+    if pd.isna(start) or pd.isna(end):
+        return 0
+
+    d0_np = np.datetime64(start, "D")
+    d1_np = np.datetime64(end, "D")
     if d1_np < d0_np:
         d0_np, d1_np = d1_np, d0_np
     bd = np.busday_count(d0_np, d1_np, busdaycal=busdaycal)
@@ -65,13 +75,35 @@ def leave_zones_to_holidays(zones):
     return all_holidays
 
 def to_date(x):
+    if x is None or (isinstance(x, float) and math.isnan(x)):
+        return None
     if pd.isna(x):
         return None
     if isinstance(x, date):
         return x
     if isinstance(x, datetime):
         return x.date()
-    return pd.to_datetime(str(x)).date()
+
+    try:
+        parsed = pd.to_datetime(x, errors="coerce")
+    except Exception:
+        try:
+            parsed = pd.to_datetime(str(x), errors="coerce")
+        except Exception:
+            return None
+
+    if pd.isna(parsed):
+        return None
+
+    if isinstance(parsed, datetime):
+        return parsed.date()
+    if isinstance(parsed, date):
+        return parsed
+
+    try:
+        return pd.to_datetime(parsed, errors="coerce").date()
+    except Exception:
+        return None
 
 
 def _normalize_leave_zones_state():
