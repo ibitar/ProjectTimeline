@@ -4,6 +4,7 @@
 
 import io
 import math
+import unicodedata
 from html import escape
 import pandas as pd
 import numpy as np
@@ -17,6 +18,24 @@ from datetime import datetime, date, timedelta, timezone
 from itertools import zip_longest
 
 st.set_page_config(page_title="Gantt Planner", layout="wide")
+
+
+def _normalize_column_name(name: str) -> str:
+    """Return a lowercase, accent-free version of a column/sheet name."""
+
+    if not isinstance(name, str):
+        name = "" if name is None else str(name)
+    normalized = unicodedata.normalize("NFD", name)
+    stripped = "".join(c for c in normalized if unicodedata.category(c) != "Mn")
+    return stripped.lower().strip()
+
+
+def _find_column(cols: dict, *candidates: str) -> str | None:
+    for candidate in candidates:
+        key = _normalize_column_name(candidate)
+        if key in cols:
+            return cols[key]
+    return None
 
 # ============================== Helpers ==============================
 
@@ -166,6 +185,106 @@ def to_date(x):
         return None
 
 
+def _normalize_planning_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    cols = {_normalize_column_name(c): c for c in df.columns}
+    required = {"id", "title", "start", "end"}
+    missing = [r for r in required if r not in cols]
+    if missing:
+        raise ValueError(
+            "Fichier combiné attendu avec colonnes au minimum: id,title,start,end[,group,milestone,progress,depends_on]"
+        )
+
+    rename_map = {}
+    for key in ["id", "title", "start", "end", "group", "milestone", "progress", "depends_on", "marker"]:
+        src = cols.get(key)
+        if src:
+            rename_map[src] = key
+
+    df_norm = df.rename(columns=rename_map).copy()
+    if "group" not in df_norm:
+        df_norm["group"] = ""
+    if "milestone" not in df_norm:
+        df_norm["milestone"] = 0
+    if "progress" not in df_norm:
+        df_norm["progress"] = 0
+    if "depends_on" not in df_norm:
+        df_norm["depends_on"] = ""
+    if "marker" not in df_norm:
+        df_norm["marker"] = ""
+
+    df_norm["id"] = df_norm["id"].astype(str)
+    df_norm["title"] = df_norm["title"].astype(str)
+    df_norm["group"] = df_norm["group"].fillna("").astype(str)
+    df_norm["depends_on"] = df_norm["depends_on"].fillna("").astype(str)
+    df_norm["marker"] = df_norm["marker"].fillna("").astype(str)
+    df_norm["progress"] = pd.to_numeric(df_norm["progress"], errors="coerce").fillna(0)
+
+    return df_norm
+
+
+def _normalize_inputs_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["date", "label"])
+
+    cols = {_normalize_column_name(c): c for c in df.columns}
+    date_col = _find_column(cols, "date")
+    label_col = _find_column(cols, "label", "libelle", "titre")
+    if not date_col or not label_col:
+        raise ValueError("Le fichier inputs doit contenir: date,label")
+
+    df_norm = df.rename(columns={date_col: "date", label_col: "label"})
+    return df_norm[["date", "label"]]
+
+
+def _normalize_leave_zones_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["start", "end", "label"])
+
+    cols = {_normalize_column_name(c): c for c in df.columns}
+    start_col = _find_column(cols, "start", "debut", "début", "date_debut")
+    end_col = _find_column(cols, "end", "fin", "date_fin")
+    label_col = _find_column(cols, "label", "titre", "libelle", "libellé")
+    if not start_col or not end_col:
+        raise ValueError("Le fichier congés doit contenir: start,end[,label]")
+
+    rename_map = {start_col: "start", end_col: "end"}
+    if label_col:
+        rename_map[label_col] = "label"
+    df_norm = df.rename(columns=rename_map)
+
+    for col in ("start", "end"):
+        df_norm[col] = pd.to_datetime(df_norm[col], errors="coerce")
+
+    df_norm = df_norm.dropna(subset=["start", "end"])
+    if df_norm.empty:
+        return pd.DataFrame(columns=["start", "end", "label"])
+
+    df_norm["start"] = df_norm["start"].dt.date
+    df_norm["end"] = df_norm["end"].dt.date
+
+    if "label" not in df_norm:
+        df_norm["label"] = "Congés"
+    else:
+        df_norm["label"] = df_norm["label"].apply(
+            lambda v: "Congés" if (pd.isna(v) or not str(v).strip()) else str(v)
+        )
+
+    return df_norm[["start", "end", "label"]]
+
+
+def _normalize_holidays_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["date"])
+
+    cols = {_normalize_column_name(c): c for c in df.columns}
+    date_col = _find_column(cols, "date")
+    if not date_col:
+        raise ValueError("Le fichier jours_feries doit contenir: date")
+
+    df_norm = df.rename(columns={date_col: "date"})
+    return df_norm[["date"]]
+
+
 def _normalize_leave_zones_state():
     """Ensure the leave zones stored in the session are a clean DataFrame."""
 
@@ -264,46 +383,47 @@ def _read_table(file) -> pd.DataFrame:
     return pd.read_csv(file)
 
 
-def parse_combined_file(file) -> pd.DataFrame:
-    df = _read_table(file)
-    # normalize columns
-    cols = {c.lower().strip(): c for c in df.columns}
-    required = ["id","title","start","end"]
-    for r in required:
-        if r not in cols:
+def parse_combined_file(file) -> tuple[pd.DataFrame, dict]:
+    name = getattr(file, "name", "").lower()
+    extras: dict[str, pd.DataFrame] = {}
+
+    if name.endswith((".xlsx", ".xls")):
+        sheets = pd.read_excel(file, sheet_name=None)
+        planning_df = None
+        for sheet_name, sheet_df in sheets.items():
+            try:
+                planning_df = _normalize_planning_dataframe(sheet_df)
+                extras["planning_sheet"] = sheet_name
+                break
+            except ValueError:
+                continue
+        if planning_df is None:
             raise ValueError(
-                "Fichier combiné attendu avec colonnes au minimum: id,title,start,end[,group,milestone,progress,depends_on]"
+                "Impossible de trouver une feuille avec les colonnes id,title,start,end dans le fichier combiné."
             )
-    # harmonize
-    df = df.rename(columns={cols.get("id","id"): "id",
-                            cols.get("title","title"): "title",
-                            cols.get("start","start"): "start",
-                            cols.get("end","end"): "end",
-                            cols.get("group","group"): "group",
-                            cols.get("milestone","milestone"): "milestone",
-                            cols.get("progress","progress"): "progress",
-                            cols.get("depends_on","depends_on"): "depends_on",
-                            cols.get("marker","marker"): "marker"})
-    if "group" not in df:
-        df["group"] = ""
-    if "milestone" not in df:
-        df["milestone"] = 0
-    if "progress" not in df:
-        df["progress"] = 0
-    if "depends_on" not in df:
-        df["depends_on"] = ""
-    if "marker" not in df:
-        df["marker"] = ""
 
-    # ensure text columns are strings for editing compatibility
-    df["id"] = df["id"].astype(str)
-    df["title"] = df["title"].astype(str)
-    df["group"] = df["group"].fillna("").astype(str)
-    df["depends_on"] = df["depends_on"].fillna("").astype(str)
-    df["marker"] = df["marker"].fillna("").astype(str)
-    df["progress"] = pd.to_numeric(df["progress"], errors="coerce").fillna(0)
+        # Optional sheets
+        sheet_lookup = {_normalize_column_name(name): (name, df) for name, df in sheets.items()}
+        for _, aliases, normalizer, store_key in [
+            ("inputs", ("inputs", "annotations"), _normalize_inputs_dataframe, "inputs"),
+            ("leave_zones", ("leave_zones", "conges", "congés", "vacances"), _normalize_leave_zones_dataframe, "leave_zones"),
+            ("holidays", ("jours_feries", "joursferies", "holidays"), _normalize_holidays_dataframe, "holidays"),
+        ]:
+            for alias in aliases:
+                alias_key = _normalize_column_name(alias)
+                if alias_key in sheet_lookup:
+                    raw_df = sheet_lookup[alias_key][1]
+                    try:
+                        extras[store_key] = normalizer(raw_df)
+                    except ValueError:
+                        pass
+                    break
 
-    return df
+        return planning_df, extras
+
+    df = _read_table(file)
+    planning_df = _normalize_planning_dataframe(df)
+    return planning_df, extras
 
 def parse_activities_file(file) -> pd.DataFrame:
     df = _read_table(file)
@@ -339,18 +459,11 @@ def parse_milestones_file(file) -> pd.DataFrame:
 
 def parse_inputs_file(file) -> pd.DataFrame:
     df = _read_table(file)
-    # columns: date,label
-    if not {"date","label"}.issubset({c.lower() for c in df.columns}):
-        raise ValueError("Le fichier inputs doit contenir: date,label")
-    df = df.rename(columns={c: c.lower() for c in df.columns})
-    return df[["date","label"]]
+    return _normalize_inputs_dataframe(df)
 
 def parse_holidays_file(file) -> pd.DataFrame:
     df = _read_table(file)
-    if "date" not in {c.lower() for c in df.columns}:
-        raise ValueError("Le fichier jours_feries doit contenir: date")
-    df = df.rename(columns={c: c.lower() for c in df.columns})
-    return df[["date"]]
+    return _normalize_holidays_dataframe(df)
 
 import datetime as dt
 
@@ -1018,16 +1131,30 @@ st.sidebar.caption("📅 Release : 04/09/2025")
 
 # ============================== Data loading ==============================
 
+combined_meta: dict[str, pd.DataFrame] = {}
+
 try:
     if mode_data == "Démo":
         df_all = demo_dataframe()
         df_inputs = pd.DataFrame({"date": ["2025-09-10", "2025-10-05"], "label": ["Données A1 - EDV", "Données A2 - EDV"]})
+        df_holidays = pd.DataFrame(columns=["date"])
     elif mode_data == "Fichier combiné":
         if uploaded_combined is None:
             st.info("➡️ Importez un fichier combiné ou passez en mode Démo.")
             st.stop()
-        df_all = parse_combined_file(uploaded_combined)
-        df_inputs = parse_inputs_file(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
+        df_all, combined_meta = parse_combined_file(uploaded_combined)
+        if uploaded_inputs:
+            df_inputs = parse_inputs_file(uploaded_inputs)
+        else:
+            df_inputs = combined_meta.get("inputs", pd.DataFrame(columns=["date", "label"]))
+
+        if combined_meta.get("leave_zones") is not None:
+            st.session_state.leave_zones = combined_meta["leave_zones"].copy()
+
+        if uploaded_holidays:
+            df_holidays = parse_holidays_file(uploaded_holidays)
+        else:
+            df_holidays = combined_meta.get("holidays", pd.DataFrame(columns=["date"]))
 
         edit_csv = st.sidebar.checkbox(
             "Éditer les données importées",
@@ -1109,6 +1236,14 @@ try:
                 with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
                     df_export.to_excel(writer, sheet_name="planning", index=False)
                     editor_inputs.to_excel(writer, sheet_name="inputs", index=False)
+                    leave_zones_export = _normalize_leave_zones_dataframe(
+                        st.session_state.get(
+                            "leave_zones", pd.DataFrame(columns=["start", "end", "label"])
+                        )
+                    )
+                    leave_zones_export.to_excel(writer, sheet_name="leave_zones", index=False)
+                    holidays_export = _normalize_holidays_dataframe(df_holidays)
+                    holidays_export.to_excel(writer, sheet_name="jours_feries", index=False)
                 buffer.seek(0)
                 st.download_button(
                     "⬇️ Télécharger donnees.xlsx",
@@ -1123,7 +1258,7 @@ try:
                 if not st.session_state.editor_inputs.empty
                 else pd.DataFrame(columns=["date", "label"])
             )
-        
+
     elif mode_data == "Édition (sans fichier)":
         _init_editor_state()
         st.subheader("✍️ Édition des données (sans fichier)")
@@ -1201,8 +1336,9 @@ try:
 
         # Construire df_all / df_inputs à partir des éditeurs
         df_all = _build_df_all_from_editors(st.session_state.editor_tasks, st.session_state.editor_ms)
-        df_inputs = st.session_state.editor_inputs if not st.session_state.editor_inputs.empty else pd.DataFrame(columns=["date","label"])
-            
+        df_inputs = st.session_state.editor_inputs if not st.session_state.editor_inputs.empty else pd.DataFrame(columns=["date", "label"])
+        df_holidays = pd.DataFrame(columns=["date"])
+
     else:  # Fichiers séparés
         if uploaded_acts is None or uploaded_miles is None:
             st.info("➡️ Importez les fichiers activities et milestones, ou passez en mode Démo.")
@@ -1229,8 +1365,8 @@ try:
                     ["id","title","start","end","group","milestone","progress","depends_on","marker"]
                 ],
         ], ignore_index=True)
-        df_inputs = parse_inputs_file(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date","label"])
-    df_holidays = parse_holidays_file(uploaded_holidays) if uploaded_holidays else pd.DataFrame(columns=["date"])
+        df_inputs = parse_inputs_file(uploaded_inputs) if uploaded_inputs else pd.DataFrame(columns=["date", "label"])
+        df_holidays = parse_holidays_file(uploaded_holidays) if uploaded_holidays else pd.DataFrame(columns=["date"])
 except Exception as e:
     st.error(f"Erreur lors du chargement des données : {e}")
     st.stop()
