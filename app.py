@@ -13,7 +13,7 @@ import matplotlib.dates as mdates
 import matplotlib.transforms as transforms
 import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from itertools import zip_longest
 
 st.set_page_config(page_title="Gantt Planner", layout="wide")
@@ -79,10 +79,22 @@ def to_date(x):
         return None
     if pd.isna(x):
         return None
+
+    if isinstance(x, pd.Timestamp):
+        try:
+            if x.tzinfo is not None:
+                x = x.tz_convert("UTC").tz_localize(None)
+        except AttributeError:
+            pass
+        return x.date()
+
+    if isinstance(x, datetime):
+        if x.tzinfo is not None:
+            x = x.astimezone(timezone.utc).replace(tzinfo=None)
+        return x.date()
+
     if isinstance(x, date):
         return x
-    if isinstance(x, datetime):
-        return x.date()
 
     try:
         parsed = pd.to_datetime(x, errors="coerce")
