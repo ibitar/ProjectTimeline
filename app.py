@@ -75,26 +75,29 @@ def _ensure_busdaycalendar(busdaycal):
 
 def business_days_between(d0, d1, inclusive=True, busdaycal=None):
     """Return number of working days between two dates, excluding weekends/holidays."""
-
     start = to_date(d0)
     end = to_date(d1)
-
-    if start is None or end is None:
-        return 0
-
-    if pd.isna(start) or pd.isna(end):
+    if start is None or end is None or pd.isna(start) or pd.isna(end):
         return 0
 
     d0_np = np.datetime64(start, "D")
     d1_np = np.datetime64(end, "D")
     if d1_np < d0_np:
         d0_np, d1_np = d1_np, d0_np
-    normalized_calendar = _ensure_busdaycalendar(busdaycal)
-    bd = np.busday_count(d0_np, d1_np, busdaycal=normalized_calendar)
-    if inclusive and np.is_busday(d1_np, busdaycal=normalized_calendar):
-        bd += 1
-    return int(bd)
 
+    normalized_calendar = _ensure_busdaycalendar(busdaycal)
+
+    # n'appelle busday_count/is_busday avec busdaycal QUE s'il n'est pas None
+    if normalized_calendar is None:
+        bd = np.busday_count(d0_np, d1_np)
+        if inclusive and np.is_busday(d1_np):
+            bd += 1
+    else:
+        bd = np.busday_count(d0_np, d1_np, busdaycal=normalized_calendar)
+        if inclusive and np.is_busday(d1_np, busdaycal=normalized_calendar):
+            bd += 1
+
+    return int(bd)
 
 def leave_zones_to_holidays(zones):
     """Convert configured leave zones to business-day holidays for NumPy calendars."""
