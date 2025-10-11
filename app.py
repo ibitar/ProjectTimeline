@@ -46,6 +46,52 @@ def to_date(x):
         return x.date()
     return pd.to_datetime(str(x)).date()
 
+
+def _normalize_leave_zones_state():
+    """Ensure the leave zones stored in the session are a clean DataFrame."""
+
+    default_row = {"start": date.today(), "end": date.today(), "label": "Congés"}
+
+    raw_value = st.session_state.get("leave_zones")
+
+    if raw_value is None:
+        df = pd.DataFrame([default_row])
+    elif isinstance(raw_value, pd.DataFrame):
+        df = raw_value.copy()
+    elif isinstance(raw_value, dict):
+        df = pd.DataFrame([raw_value])
+    elif isinstance(raw_value, (list, tuple)):
+        try:
+            df = pd.DataFrame(raw_value)
+        except (TypeError, ValueError):
+            df = pd.DataFrame()
+    else:
+        df = pd.DataFrame()
+
+    if df.empty:
+        df = pd.DataFrame([default_row])
+
+    for col in ("start", "end"):
+        if col in df:
+            df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
+        else:
+            df[col] = date.today()
+
+    if "label" in df:
+        def _clean_label(value):
+            if isinstance(value, str):
+                return value.strip() or "Congés"
+            if pd.isna(value):
+                return "Congés"
+            return str(value)
+
+        df["label"] = df["label"].apply(_clean_label)
+    else:
+        df["label"] = "Congés"
+
+    st.session_state.leave_zones = df[["start", "end", "label"]]
+
+
 def _data_width_in_pixels(ax, x_left, x_right):
     p0 = ax.transData.transform((x_left, 0))
     p1 = ax.transData.transform((x_right, 0))
@@ -736,10 +782,8 @@ with tabs[2]:
             value=False,
             help="Ajoute une zone verticale couvrant toute la hauteur du graphique entre deux dates.",
         )
-        if "leave_zones" not in st.session_state:
-            st.session_state.leave_zones = pd.DataFrame(
-                [{"start": date.today(), "end": date.today(), "label": "Congés"}]
-            )
+
+        _normalize_leave_zones_state()
         if leave_zone_enabled:
             leave_zones_df = st.data_editor(
                 st.session_state.leave_zones,
