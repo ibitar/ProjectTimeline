@@ -29,6 +29,50 @@ def weeks_between(d0, d1, inclusive=True):
     d = days_between(d0, d1, inclusive=inclusive)
     return d / 7.0
 
+def _ensure_busdaycalendar(busdaycal):
+    """Return a numpy.busdaycalendar from a variety of inputs or None."""
+
+    if busdaycal is None:
+        return None
+
+    if isinstance(busdaycal, np.busdaycalendar):
+        return busdaycal
+
+    # Accept raw holiday collections (NumPy arrays, Pandas objects, Python iterables).
+    holidays_source = None
+
+    if isinstance(busdaycal, dict):
+        holidays_source = busdaycal.get("holidays")
+    else:
+        holidays_source = busdaycal
+
+    try:
+        holidays = pd.to_datetime(holidays_source, errors="coerce")
+    except Exception:
+        return None
+
+    if hasattr(holidays, "dropna"):
+        holidays = holidays.dropna()
+    else:
+        holidays = pd.Series(holidays).dropna()
+
+    if len(holidays) == 0:
+        return None
+
+    try:
+        holidays_np = holidays.to_numpy(dtype="datetime64[D]")
+    except AttributeError:
+        holidays_np = np.array(holidays, dtype="datetime64[D]")
+
+    if holidays_np.size == 0:
+        return None
+
+    try:
+        return np.busdaycalendar(holidays=holidays_np)
+    except Exception:
+        return None
+
+
 def business_days_between(d0, d1, inclusive=True, busdaycal=None):
     """Return number of working days between two dates, excluding weekends/holidays."""
 
@@ -45,8 +89,9 @@ def business_days_between(d0, d1, inclusive=True, busdaycal=None):
     d1_np = np.datetime64(end, "D")
     if d1_np < d0_np:
         d0_np, d1_np = d1_np, d0_np
-    bd = np.busday_count(d0_np, d1_np, busdaycal=busdaycal)
-    if inclusive and np.is_busday(d1_np, busdaycal=busdaycal):
+    normalized_calendar = _ensure_busdaycalendar(busdaycal)
+    bd = np.busday_count(d0_np, d1_np, busdaycal=normalized_calendar)
+    if inclusive and np.is_busday(d1_np, busdaycal=normalized_calendar):
         bd += 1
     return int(bd)
 
