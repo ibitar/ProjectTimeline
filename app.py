@@ -736,13 +736,26 @@ with tabs[2]:
             value=False,
             help="Ajoute une zone verticale couvrant toute la hauteur du graphique entre deux dates.",
         )
-        leave_zone_range = st.date_input(
-            "Plage de dates",
-            value=(date.today(), date.today()),
-            help="Choisir les dates de début et de fin de la zone (incluses).",
-        )
-        if not isinstance(leave_zone_range, (list, tuple)) or len(leave_zone_range) != 2:
-            leave_zone_range = (leave_zone_range, leave_zone_range)
+        if "leave_zones" not in st.session_state:
+            st.session_state.leave_zones = pd.DataFrame(
+                [{"start": date.today(), "end": date.today(), "label": "Congés"}]
+            )
+        if leave_zone_enabled:
+            leave_zones_df = st.data_editor(
+                st.session_state.leave_zones,
+                num_rows="dynamic",
+                use_container_width=True,
+                column_config={
+                    "start": st.column_config.DateColumn("Début", default=date.today()),
+                    "end": st.column_config.DateColumn("Fin", default=date.today()),
+                    "label": st.column_config.TextColumn("Titre", default="Congés", width="medium"),
+                },
+                hide_index=True,
+                key="leave_zones_editor",
+                help="Ajoutez plusieurs plages de dates à hachurer. Par défaut, chaque zone s'intitule 'Congés'.",
+            )
+            if leave_zones_df is not None:
+                st.session_state.leave_zones = leave_zones_df
         leave_zone_color = st.color_picker(
             "Couleur de la zone",
             "#B0B0B0",
@@ -766,11 +779,6 @@ with tabs[2]:
             ["//", "\\\\", "xx", "..", "++", ""],
             index=0,
             help="Choisir le motif de hachures.",
-        )
-        leave_zone_label = st.text_input(
-            "Texte sur la zone",
-            "Congés",
-            help="Texte optionnel affiché au centre de la zone.",
         )
         leave_zone_label_color = st.color_picker(
             "Couleur du texte",
@@ -1091,17 +1099,30 @@ if not df_holidays.empty:
     df_holidays["date"] = pd.to_datetime(df_holidays["date"]).dt.date
 
 if leave_zone_enabled:
-    try:
-        leave_zone_start = pd.to_datetime(leave_zone_range[0]).date() if leave_zone_range[0] else None
-        leave_zone_end = pd.to_datetime(leave_zone_range[1]).date() if leave_zone_range[1] else None
-    except Exception:
-        leave_zone_start = None
-        leave_zone_end = None
-    if leave_zone_start and leave_zone_end and leave_zone_start > leave_zone_end:
-        leave_zone_start, leave_zone_end = leave_zone_end, leave_zone_start
+    leave_zones_df = st.session_state.get("leave_zones", pd.DataFrame())
 else:
-    leave_zone_start = None
-    leave_zone_end = None
+    leave_zones_df = pd.DataFrame(columns=["start", "end", "label"])
+
+leave_zones = []
+if leave_zone_enabled and not leave_zones_df.empty:
+    df_tmp = leave_zones_df.copy()
+    for col in ("start", "end"):
+        if col in df_tmp:
+            df_tmp[col] = pd.to_datetime(df_tmp[col], errors="coerce").dt.date
+    for row in df_tmp.itertuples(index=False):
+        start = getattr(row, "start", None)
+        end = getattr(row, "end", None)
+        if start and end:
+            if start > end:
+                start, end = end, start
+            label_raw = getattr(row, "label", "")
+            if isinstance(label_raw, str):
+                label = label_raw.strip() or "Congés"
+            elif pd.isna(label_raw):
+                label = "Congés"
+            else:
+                label = str(label_raw)
+            leave_zones.append({"start": start, "end": end, "label": label})
 
 # ============================== X range (robuste) ==============================
 
@@ -1140,10 +1161,15 @@ if 'df_inputs' in locals() and not df_inputs.empty:
     if in_max:
         data_max = in_max if (data_max is None or in_max > data_max) else data_max
 
-if leave_zone_start:
-    data_min = leave_zone_start if (data_min is None or leave_zone_start < data_min) else data_min
-if leave_zone_end:
-    data_max = leave_zone_end if (data_max is None or leave_zone_end > data_max) else data_max
+if leave_zones:
+    zone_starts = [z["start"] for z in leave_zones]
+    zone_ends = [z["end"] for z in leave_zones]
+    if zone_starts:
+        zone_min = min(zone_starts)
+        data_min = zone_min if (data_min is None or zone_min < data_min) else data_min
+    if zone_ends:
+        zone_max = max(zone_ends)
+        data_max = zone_max if (data_max is None or zone_max > data_max) else data_max
 
 # fallback si toujours None → fenêtre centrée sur aujourd’hui
 if data_min is None or data_max is None:
@@ -1381,6 +1407,8 @@ for k, row in enumerate(df_ms.itertuples(index=False)):
                 x_ms + ms_inline_title_dx,
                 y_af + ms_inline_title_dy,
                 row.title,
+                rotation=90,
+                rotation_mode="anchor",
                 ha="left",
                 va="center",
                 alpha=ms_vline_title_alpha,
@@ -1630,35 +1658,37 @@ if highlight_weekends or not df_holidays.empty:
         day = mdates.num2date(day_num).date()
         if (highlight_weekends and day.weekday() in {5, 6}) or (day in holidays):
             ax.axvspan(day_num, day_num + 1, color='0.9', zorder=1)
-if leave_zone_start and leave_zone_end:
-    zone_start_num = mdates.date2num(leave_zone_start)
-    zone_end_num = mdates.date2num(leave_zone_end + timedelta(days=1))
-    if zone_start_num > zone_end_num:
-        zone_start_num, zone_end_num = zone_end_num, zone_start_num
-    zone_patch = ax.axvspan(
-        zone_start_num,
-        zone_end_num,
-        facecolor=leave_zone_color,
-        edgecolor=leave_zone_edge_color,
-        alpha=leave_zone_alpha,
-        hatch=leave_zone_hatch,
-        linewidth=1.0,
-        zorder=1.4,
-    )
-    if leave_zone_label:
-        blended_zone = transforms.blended_transform_factory(ax.transData, ax.transAxes)
-        ax.text(
-            zone_start_num + (zone_end_num - zone_start_num) / 2.0,
-            leave_zone_label_y,
-            leave_zone_label,
-            ha="center",
-            va="center",
-            color=leave_zone_label_color,
-            fontsize=12,
-            transform=blended_zone,
-            zorder=zone_patch.get_zorder() + 0.1,
-            clip_on=False,
+if leave_zones:
+    blended_zone = transforms.blended_transform_factory(ax.transData, ax.transAxes)
+    for zone in leave_zones:
+        zone_start_num = mdates.date2num(zone["start"])
+        zone_end_num = mdates.date2num(zone["end"] + timedelta(days=1))
+        if zone_start_num > zone_end_num:
+            zone_start_num, zone_end_num = zone_end_num, zone_start_num
+        zone_patch = ax.axvspan(
+            zone_start_num,
+            zone_end_num,
+            facecolor=leave_zone_color,
+            edgecolor=leave_zone_edge_color,
+            alpha=leave_zone_alpha,
+            hatch=leave_zone_hatch,
+            linewidth=1.0,
+            zorder=1.4,
         )
+        label_text = zone.get("label", "Congés")
+        if label_text:
+            ax.text(
+                zone_start_num + (zone_end_num - zone_start_num) / 2.0,
+                leave_zone_label_y,
+                label_text,
+                ha="center",
+                va="center",
+                color=leave_zone_label_color,
+                fontsize=12,
+                transform=blended_zone,
+                zorder=zone_patch.get_zorder() + 0.1,
+                clip_on=False,
+            )
 if show_today_line:
     today_num = mdates.date2num(pd.Timestamp.today().date())
     ax.axvline(today_num, color='red', linestyle='--', alpha=0.5, zorder=1)
