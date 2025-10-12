@@ -285,6 +285,66 @@ def _normalize_holidays_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df_norm[["date"]]
 
 
+def _normalize_group_colors_dataframe(
+    df: pd.DataFrame, known_groups: list[str] | None = None
+) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["group", "color"])
+
+    cols = {_normalize_column_name(c): c for c in df.columns}
+    group_col = _find_column(cols, "group", "groupe")
+    color_col = _find_column(cols, "color", "colour", "couleur", "hex", "code")
+    if not group_col or not color_col:
+        raise ValueError("Le fichier group_colors doit contenir: group,color")
+
+    df_norm = df.rename(columns={group_col: "group", color_col: "color"})
+    df_norm = df_norm.dropna(subset=["group", "color"])
+    if df_norm.empty:
+        return pd.DataFrame(columns=["group", "color"])
+
+    df_norm["group"] = df_norm["group"].astype(str).str.strip()
+    df_norm["color"] = df_norm["color"].astype(str).str.strip()
+    df_norm = df_norm[df_norm["group"] != ""]
+
+    known = {g for g in (known_groups or []) if isinstance(g, str) and g}
+
+    def _clean_color(value: str) -> str | None:
+        if value is None:
+            return None
+        value = str(value).strip()
+        if not value:
+            return None
+        candidates = [value]
+        if not value.startswith("#"):
+            candidates.append(f"#{value}")
+        for cand in candidates:
+            try:
+                return mcolors.to_hex(mcolors.to_rgba(cand))
+            except ValueError:
+                continue
+        return None
+
+    cleaned: list[dict[str, str]] = []
+    for _, row in df_norm.iterrows():
+        group = row.get("group", "")
+        color = row.get("color", "")
+        if not group:
+            continue
+        if known and group not in known:
+            continue
+        color_hex = _clean_color(color)
+        if not color_hex:
+            continue
+        cleaned.append({"group": group, "color": color_hex})
+
+    if not cleaned:
+        return pd.DataFrame(columns=["group", "color"])
+
+    df_clean = pd.DataFrame(cleaned)
+    df_clean = df_clean.drop_duplicates(subset=["group"], keep="last").reset_index(drop=True)
+    return df_clean[["group", "color"]]
+
+
 def _normalize_leave_zones_state():
     """Ensure the leave zones stored in the session are a clean DataFrame."""
 
@@ -404,10 +464,23 @@ def parse_combined_file(file) -> tuple[pd.DataFrame, dict]:
 
         # Optional sheets
         sheet_lookup = {_normalize_column_name(name): (name, df) for name, df in sheets.items()}
+        planning_groups = []
+        if "group" in planning_df:
+            planning_groups = [
+                g
+                for g in planning_df["group"].astype(str).fillna("").unique().tolist()
+                if g
+            ]
         for _, aliases, normalizer, store_key in [
             ("inputs", ("inputs", "annotations"), _normalize_inputs_dataframe, "inputs"),
             ("leave_zones", ("leave_zones", "conges", "congés", "vacances"), _normalize_leave_zones_dataframe, "leave_zones"),
             ("holidays", ("jours_feries", "joursferies", "holidays"), _normalize_holidays_dataframe, "holidays"),
+            (
+                "group_colors",
+                ("group_colors", "groupes_couleurs", "couleurs_groupes"),
+                lambda df, groups=planning_groups: _normalize_group_colors_dataframe(df, groups),
+                "group_colors",
+            ),
         ]:
             for alias in aliases:
                 alias_key = _normalize_column_name(alias)
@@ -1175,6 +1248,18 @@ try:
         if combined_meta.get("leave_zones") is not None:
             st.session_state.leave_zones = combined_meta["leave_zones"].copy()
 
+        combined_file_id = getattr(uploaded_combined, "name", "")
+        group_colors_df = combined_meta.get("group_colors")
+        if group_colors_df is not None and not group_colors_df.empty:
+            if st.session_state.get("group_colors_source") != combined_file_id:
+                st.session_state.group_colors = {
+                    row["group"]: row["color"] for _, row in group_colors_df.iterrows()
+                }
+                st.session_state.group_colors_source = combined_file_id
+        elif st.session_state.get("group_colors_source") != combined_file_id:
+            st.session_state.group_colors = {}
+            st.session_state.group_colors_source = combined_file_id
+
         if uploaded_holidays:
             df_holidays = parse_holidays_file(uploaded_holidays)
         else:
@@ -1186,7 +1271,7 @@ try:
             help="Permet de modifier les données après import",
         )
         if edit_csv:
-            file_id = getattr(uploaded_combined, "name", "")
+            file_id = combined_file_id
             if (st.session_state.get("editor_source") != "uploaded" or
                     st.session_state.get("editor_file") != file_id):
                 _init_editor_state_from_df(df_all, df_inputs, file_id)
@@ -1260,6 +1345,33 @@ try:
                 with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
                     df_export.to_excel(writer, sheet_name="planning", index=False)
                     editor_inputs.to_excel(writer, sheet_name="inputs", index=False)
+                    if isinstance(df_export, pd.DataFrame) and "group" in df_export:
+                        export_group_series = df_export["group"]
+                    else:
+                        export_group_series = pd.Series(dtype=str)
+                    export_groups = (
+                        pd.Series(export_group_series)
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
+                    )
+                    export_groups = export_groups[export_groups != ""].unique().tolist()
+                    state_group_colors = st.session_state.get("group_colors", {})
+                    group_color_rows = []
+                    for group_name in export_groups:
+                        raw_color = state_group_colors.get(group_name, "")
+                        color_value = ""
+                        if raw_color:
+                            try:
+                                color_value = mcolors.to_hex(mcolors.to_rgba(raw_color))
+                            except ValueError:
+                                color_value = raw_color
+                        group_color_rows.append({"group": group_name, "color": color_value})
+                    if group_color_rows:
+                        group_colors_export = pd.DataFrame(group_color_rows)
+                    else:
+                        group_colors_export = pd.DataFrame(columns=["group", "color"])
+                    group_colors_export.to_excel(writer, sheet_name="group_colors", index=False)
                     leave_zones_export = _normalize_leave_zones_dataframe(
                         st.session_state.get(
                             "leave_zones", pd.DataFrame(columns=["start", "end", "label"])
