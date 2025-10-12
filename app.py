@@ -745,12 +745,23 @@ with tabs[0]:
         show_grid = st.checkbox("Quadrillage pointillé", value=True, help="Affiche un quadrillage en pointillés")
         highlight_weekends = st.checkbox("Surligner week-ends", value=False, help="Met en évidence les week-ends")
         grid_axis = st.selectbox("Grille sur", ["x", "both"], index=0, help="Choix de l'axe pour la grille")
+        _tick_step_key = "x_tick_step"
+        _tick_step_unit_key = "x_tick_step_unit"
+        _default_tick_step = 10 if unit == "Jours" else 2
+        if (
+            _tick_step_key not in st.session_state
+            or st.session_state.get(_tick_step_unit_key) != unit
+        ):
+            st.session_state[_tick_step_key] = _default_tick_step
+        st.session_state[_tick_step_unit_key] = unit
+
         x_tick_step = st.number_input(
             "Pas des graduations majeures (jours/semaines)",
             min_value=1,
             max_value=30,
-            value=2,
+            value=st.session_state[_tick_step_key],
             step=1,
+            key=_tick_step_key,
             help="Intervalle entre les graduations principales",
         )
         _date_fmt_options = {
