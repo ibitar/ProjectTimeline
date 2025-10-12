@@ -685,10 +685,23 @@ st.sidebar.markdown("---")
 planning_title = st.sidebar.text_input("Titre du planning", "Planning")
 planning_title_size = st.sidebar.slider("Taille du titre", 8, 32, 32)
 planning_title_color = st.sidebar.color_picker("Couleur du titre", "#000000")
+planning_title_show_today = st.sidebar.checkbox(
+    "Afficher la date du jour sous le titre", value=False
+)
+planning_title_date_format = st.sidebar.text_input(
+    "Format de la date du titre", "%d/%m/%Y"
+)
+default_subtitle_size = max(6, min(planning_title_size - 8, planning_title_size))
+planning_title_subtitle_size = st.sidebar.slider(
+    "Taille du sous-titre (date)",
+    6,
+    28,
+    value=default_subtitle_size,
+)
 unit = st.sidebar.selectbox(
     "Unité de temps",
     ["Jours", "Semaines"],
-    index=1,
+    index=0,
     help="Choisir l'unité d'affichage des durées",
 )
 inclusive_duration = st.sidebar.checkbox(
@@ -703,7 +716,7 @@ show_assumptions_note = st.sidebar.checkbox(
 )
 assumptions_note_key = "planning_assumptions_note"
 assumptions_note_default = (
-    "- Les durées affichées excluent les week-ends et les périodes de congés configurées."
+    "- Les durées affichées excluent les week-ends, les jours fériés fournis et les périodes de congés configurées."
 )
 if assumptions_note_key not in st.session_state:
     st.session_state[assumptions_note_key] = assumptions_note_default
@@ -1448,10 +1461,39 @@ if leave_zone_enabled and not leave_zones_df.empty:
                 label = str(label_raw)
             leave_zones.append({"start": start, "end": end, "label": label})
 
-leave_zone_calendar = None
 leave_zone_holidays = leave_zones_to_holidays(leave_zones)
+holiday_arrays: list[np.ndarray] = []
+
 if leave_zone_holidays is not None and len(leave_zone_holidays) > 0:
-    leave_zone_calendar = np.busdaycalendar(holidays=leave_zone_holidays)
+    holiday_arrays.append(leave_zone_holidays)
+
+if not df_holidays.empty:
+    try:
+        official_np = np.array(df_holidays["date"], dtype="datetime64[D]")
+    except Exception:
+        official_np = pd.to_datetime(df_holidays["date"], errors="coerce").dropna().to_numpy(dtype="datetime64[D]")
+    if official_np.size > 0:
+        holiday_arrays.append(official_np)
+
+working_day_calendar = None
+if holiday_arrays:
+    combined_holidays = np.unique(np.concatenate(holiday_arrays))
+    if combined_holidays.size > 0:
+        working_day_calendar = np.busdaycalendar(holidays=combined_holidays)
+
+# Pré-calcul des durées en jours travaillés pour les activités
+if not df_tasks.empty:
+    df_tasks["duration_workdays"] = [
+        business_days_between(
+            row.start,
+            row.end,
+            inclusive=inclusive_duration,
+            busdaycal=working_day_calendar,
+        )
+        for row in df_tasks.itertuples(index=False)
+    ]
+else:
+    df_tasks["duration_workdays"] = pd.Series(dtype="int64")
 
 # ============================== X range (robuste) ==============================
 
@@ -1566,12 +1608,14 @@ for i, row in enumerate(df_tasks.itertuples(index=False), start=1):
     start_num = mdates.date2num(row.start)
     end_num   = mdates.date2num(row.end)
     duration_num = end_num - start_num
-    duration_days = business_days_between(
-        row.start,
-        row.end,
-        inclusive=inclusive_duration,
-        busdaycal=leave_zone_calendar,
-    )
+    duration_days = getattr(row, "duration_workdays", None)
+    if duration_days is None or pd.isna(duration_days):
+        duration_days = business_days_between(
+            row.start,
+            row.end,
+            inclusive=inclusive_duration,
+            busdaycal=working_day_calendar,
+        )
     duration_weeks = duration_days / 5.0 if duration_days else 0.0
     task_positions[row.id] = (start_num, end_num, i)
 
@@ -2083,7 +2127,27 @@ if show_ax_arrow:
 
 ax.set_xlabel("")
 ax.set_ylabel("")
-ax.set_title(planning_title, fontsize=planning_title_size, color=planning_title_color)
+title_pad = 12 if planning_title_show_today else 6
+ax.set_title(
+    planning_title,
+    fontsize=planning_title_size,
+    color=planning_title_color,
+    pad=title_pad,
+)
+
+if planning_title_show_today:
+    today_label = datetime.now().strftime(planning_title_date_format)
+    ax.text(
+        0.5,
+        1.02,
+        today_label,
+        transform=ax.transAxes,
+        ha="center",
+        va="bottom",
+        fontsize=planning_title_subtitle_size,
+        color=planning_title_color,
+        fontstyle="italic",
+    )
 
 st.pyplot(fig, use_container_width=True)
 
@@ -2103,14 +2167,24 @@ if show_assumptions_note:
                 unsafe_allow_html=True,
             )
 
+if not df_tasks.empty and "duration_workdays" in df_tasks.columns:
+    with st.expander("📋 Durées des activités (jours travaillés)"):
+        duration_table = df_tasks[["id", "title", "start", "end", "duration_workdays"]].copy()
+        duration_table = duration_table.rename(
+            columns={"id": "ID", "title": "Titre", "start": "Début", "end": "Fin", "duration_workdays": "Durée (jours travaillés)"}
+        )
+        st.dataframe(duration_table, hide_index=True, use_container_width=True)
+
 # ============================== Download PNG ==============================
 
 buf = io.BytesIO()
 fig.savefig(buf, format="png", dpi=200, bbox_inches="tight")
+timestamp_label = datetime.now().strftime("%Y%m%d-%H%M%S")
+png_filename = f"planning_{timestamp_label}.png"
 st.download_button(
     label="⬇️ Télécharger le PNG",
     data=buf.getvalue(),
-    file_name="planning.png",
+    file_name=png_filename,
     mime="image/png",
 )
 
